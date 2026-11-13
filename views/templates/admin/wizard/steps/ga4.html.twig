@@ -1,0 +1,316 @@
+{#
+  Krok kreatora `ga4` — 1:1 z prototypu (`cur==='ga4'`). Sam blok tresci; powloke, przelacznik
+  sklepu i przyciski Back / Skip daje kreator (agent A). Przycisk glowny ("Set up Analytics" /
+  "Working…" / "Try again" / "Continue") ustawia krok przez `QIWizard.primary`: zadanie
+  `analytics.setup` (trasa `analytics_wizard_setup`) z karta postepu `job_progress`; po udanym
+  zadaniu "Continue" wysyla formularz z `task_job` (bez drugiego przejscia przez Google).
+
+  Zmienne:
+    data    — wynik `Ga4Step::data([$idShop])` od powloki kreatora (wizard/index.html.twig)
+    errors  — opcjonalnie wynik `Ga4Step::save()` z ostatniej proby (klucz pola => komunikat;
+              `ack` = potrzebne potwierdzenie zbierania danych, `_` = blad Google)
+
+  Pola wysylane do `save()` (ukryte inputy w `[data-qi-step="ga4"]`): account, property, name,
+  timezone, currency, stream, mp, key_purchase, ack, id_shop (sklep, ktorego dotyczy wybor —
+  przy "Use the same for all shops" ten sklep dostaje wybor doslownie, pozostale wg domeny).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% set errs = errors|default({}) %}
+{% set ackNeeded = data.ackNeeded or errs.ack is defined %}
+<script>
+window.qiGa4Step = window.qiGa4Step || function (cfg) {
+    return {
+        form: cfg.form,
+        accounts: cfg.accounts,
+        properties: cfg.properties,
+        loading: false,
+        ackNeeded: cfg.ackNeeded,
+        keyLocked: cfg.keyLocked,
+        savedProperty: cfg.savedProperty,
+        // Decyzja #5: `purchase` juz kluczowe w zapisanej usludze -> stan z GA4, bez zmiany.
+        keyIsLocked: function () {
+            return this.keyLocked && this.form.property === this.savedProperty;
+        },
+        // Zadanie "Set up Analytics" (karta postepu, prototyp `taskLines('ga4')`): '' | running | done | error.
+        task: cfg.task,
+        taskJob: cfg.taskJob,
+        busy: false,
+        init: function () {
+            var self = this;
+            var picked = function () { return JSON.stringify(self.form); };
+            var saved = picked();
+
+            window.addEventListener('qi:ga4-setup', function (e) {
+                var job = e.detail || {};
+                self.task = job.status === 'done' ? 'done' : 'error';
+                self.taskJob = job.status === 'done' ? (job.id || 0) : 0;
+                // Odmowa Google bez potwierdzenia zbierania danych: przelacznik w karcie "Done for you".
+                if (job.status !== 'done' && job.error === cfg.t.ack) {
+                    self.ackNeeded = true;
+                }
+                saved = picked();
+                self.sync();
+            });
+            // Zmiana wyboru po udanym zadaniu: znow "Set up Analytics" (inaczej "Continue" zapisalby stary stan).
+            this.$watch('form', function () {
+                if (self.task === 'done' && picked() !== saved) {
+                    self.task = '';
+                    self.taskJob = 0;
+                }
+                self.sync();
+            }, { deep: true });
+            this.sync();
+        },
+        // Przycisk glowny jak prototyp `primaryLabel()` / `primaryDisabled()` dla `ga4`.
+        sync: function () {
+            var self = this;
+            if (!window.QIWizard || typeof window.QIWizard.primary !== 'function') {
+                return;
+            }
+            var running = this.busy || this.task === 'running';
+            var label = this.task === 'done' ? cfg.t.next
+                : (running ? cfg.t.working : ((this.task === 'error' || cfg.failed) ? cfg.t.retry : cfg.t.setup));
+            window.QIWizard.primary({
+                label: label,
+                disabled: running || !cfg.granted || (this.task === 'error' && this.ackNeeded && this.form.mp && !this.form.ack),
+                busy: running,
+                onClick: function () { self.primary(); }
+            });
+        },
+        primary: function () {
+            var self = this;
+            if (this.task === 'done') {
+                window.QIWizard.submit();
+                return;
+            }
+            if (this.busy || this.task === 'running') {
+                return;
+            }
+            var f = this.form;
+            this.busy = true;
+            this.sync();
+            QI.post(cfg.setupUrl, {
+                id_shop: cfg.idShop, account: f.account, property: f.property, name: f.name, timezone: f.timezone,
+                currency: f.currency, stream: f.property === 'new' ? 'new' : f.stream, mp: f.mp ? 1 : 0,
+                key_purchase: f.keyPurchase ? 1 : 0, ack: f.ack ? 1 : 0
+            }).then(function (r) {
+                self.busy = false;
+                if (r.ok && r.job) {
+                    self.task = r.job.status === 'done' ? 'done' : (r.job.status === 'failed' ? 'error' : 'running');
+                    self.taskJob = r.job.status === 'done' ? r.job.id : 0;
+                    QI.jobStart(r.job);
+                }
+                self.sync();
+            });
+        },
+        current: function () {
+            var name = this.form.property;
+            return this.properties.find(function (p) { return p.name === name; }) || null;
+        },
+        line: function (p) {
+            var s = p.streams.find(function (x) { return x.matches; }) || p.streams[0];
+            return [s ? s.measurementId : '', p.timeZone, p.currencyCode].filter(Boolean).join(' · ');
+        },
+        pickAccount: function () {
+            var self = this;
+            self.loading = true;
+            QI.post(cfg.accountsUrl, { account: self.form.account, id_shop: cfg.idShop }).then(function (r) {
+                self.loading = false;
+                if (!r.ok) {
+                    return;
+                }
+                self.properties = r.properties || [];
+                var match = self.properties.find(function (p) { return p.matches && p.canEdit; });
+                self.form.property = match ? match.name : 'new';
+                self.pickProperty();
+            });
+        },
+        pickProperty: function () {
+            var p = this.current(), s = p ? (p.streams.find(function (x) { return x.matches; }) || null) : null;
+            this.form.stream = s ? s.name : 'new';
+        }
+    };
+};
+/* Koniec zadania `analytics.setup` — wolane przez pasek postepu (onDone). */
+window.qiGa4SetupDone = window.qiGa4SetupDone || function (job) {
+    window.dispatchEvent(new CustomEvent('qi:ga4-setup', { detail: job }));
+};
+</script>
+<div class="qc-disabled-area{{ data.granted ? '' : ' is-off' }}" data-qi-step="ga4"
+     x-data="qiGa4Step({{ {
+        form: data.form|merge({name: data.form.name|default(data.defaults.name), timezone: data.form.timezone|default(data.defaults.timezone), currency: data.form.currency|default(data.defaults.currency)}),
+        accounts: data.accounts,
+        properties: data.properties,
+        ackNeeded: ackNeeded,
+        keyLocked: data.keyLocked|default(false),
+        savedProperty: data.savedProperty|default(''),
+        idShop: data.idShop,
+        accountsUrl: path('quince_insight_analytics_accounts'),
+        setupUrl: path('quince_insight_analytics_wizard_setup'),
+        granted: data.granted,
+        task: data.task|default(''),
+        taskJob: data.task|default('') == 'done' and data.job ? data.job.id : 0,
+        failed: errs is not empty,
+        t: {
+            setup: 'Set up Analytics'|trans, working: 'Working…'|trans, retry: 'Try again'|trans,
+            next: (wizard.single|default(false) ? 'Save and return to panel' : 'Continue')|trans,
+            ack: 'Google requires the user data collection acknowledgement for this property before a Measurement Protocol secret can be created.'|trans
+        }
+     }|json_encode }})">
+    <input type="hidden" name="task_job" :value="taskJob">
+    <input type="hidden" name="id_shop" value="{{ data.idShop }}">
+    <input type="hidden" name="account" :value="form.account">
+    <input type="hidden" name="property" :value="form.property">
+    <input type="hidden" name="name" :value="form.name">
+    <input type="hidden" name="timezone" :value="form.timezone">
+    <input type="hidden" name="currency" :value="form.currency">
+    <input type="hidden" name="stream" :value="form.property === 'new' ? 'new' : form.stream">
+    <input type="hidden" name="mp" :value="form.mp ? 1 : 0">
+    <input type="hidden" name="key_purchase" :value="form.keyPurchase ? 1 : 0">
+    <input type="hidden" name="ack" :value="form.ack ? 1 : 0">
+
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Google Analytics'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Pick an existing GA4 property or let the module create one.'|trans }}</div>
+        </div>
+    </div>
+
+    {% if data.error %}
+        <div style="margin-bottom:16px">
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'danger', text: data.error} only %}
+        </div>
+    {% elseif errors is not defined and data.setupError and not ackNeeded %}
+        <div style="margin-bottom:16px">
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'danger', text: data.setupError} only %}
+        </div>
+    {% endif %}
+
+    <div class="qc-cols">
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head">
+                    <label class="qc-label">{{ 'Analytics account'|trans }}</label>
+                    <div class="qc-select-wrap">
+                        <select class="qc-field-base qc-select qc-focusable" x-model="form.account" @change="pickAccount()" :disabled="loading">
+                            <template x-for="a in accounts" :key="a.name">
+                                <option :value="a.name" x-text="a.displayName" :selected="a.name === form.account"></option>
+                            </template>
+                        </select>
+                        {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                    </div>
+                    {% if errs.account is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errs.account|trans }}</div>{% endif %}
+                    <div class="qc-hint" x-show="!accounts.length" x-cloak>{{ 'This Google account has no Analytics account yet. Create one at analytics.google.com, then open this step again.'|trans }}</div>
+                </div>
+            </div>
+
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Property'|trans }}</div></div>
+                <template x-for="p in properties" :key="p.name">
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;cursor:pointer">
+                        <input type="radio" class="qc-radio" :value="p.name" x-model="form.property" @change="pickProperty()" :disabled="!p.canEdit">
+                        <div>
+                            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)" x-text="p.displayName"></div>
+                            <div class="qc-sub" style="margin-top:4px" x-text="line(p)"></div>
+                        </div>
+                        <span>
+                            <span class="qc-badge qc-badge-success" x-show="p.matches">{{ 'Matches your shop'|trans }}</span>
+                            <span class="qc-badge" x-show="!p.canEdit">{{ 'View only'|trans }}</span>
+                        </span>
+                    </label>
+                </template>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="new" x-model="form.property" style="margin-top:2px">
+                    <div>
+                        <div class="qc-set-title">{{ 'Create a new property'|trans }}</div>
+                        <template x-if="form.property === 'new'">
+                        <div class="qc-fieldgrid" style="margin-top:14px">
+                            <div class="qc-span">
+                                <label class="qc-label">{{ 'Name'|trans }}</label>
+                                <input type="text" class="qc-field-base qc-focusable" x-model="form.name" maxlength="100">
+                                {% if errs.name is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errs.name|trans }}</div>{% endif %}
+                            </div>
+                            <div>
+                                <label class="qc-label">{{ 'Time zone'|trans }}</label>
+                                <div class="qc-select-wrap">
+                                    <select class="qc-field-base qc-select qc-focusable" x-model="form.timezone">
+                                        {% for tz in data.timeZones %}<option value="{{ tz }}">{{ tz }}</option>{% endfor %}
+                                    </select>
+                                    {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                                </div>
+                            </div>
+                            <div>
+                                <label class="qc-label">{{ 'Currency'|trans }}</label>
+                                <div class="qc-select-wrap">
+                                    <select class="qc-field-base qc-select qc-focusable" x-model="form.currency">
+                                        {% for c in data.currencies %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                                    </select>
+                                    {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                                </div>
+                            </div>
+                        </div>
+                        </template>
+                    </div>
+                </label>
+                {% if errs.property is defined %}<div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><div class="qc-hint" style="color:var(--danger);margin:0">{{ errs.property|trans }}</div></div>{% endif %}
+            </div>
+
+            <div class="qc-grid" x-show="form.property !== 'new'">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Web data stream'|trans }}</div></div>
+                <template x-for="s in (current() ? current().streams : [])" :key="s.name">
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer">
+                        <input type="radio" class="qc-radio" :value="s.name" x-model="form.stream">
+                        <div>
+                            <div class="qc-mono" style="font-size:var(--text-sm)" x-text="s.defaultUri"></div>
+                            <div class="qc-sub" style="margin-top:4px" x-text="s.measurementId"></div>
+                        </div>
+                    </label>
+                </template>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="new" x-model="form.stream">
+                    <div class="qc-set-title">{{ 'Create a new stream for this shop'|trans }}</div>
+                </label>
+            </div>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Done for you'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'The module sets these up in GA4 when you continue.'|trans }}</div>
+            </div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div>
+                    <div class="qc-set-title">{{ 'Measurement Protocol secret'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Lets the shop send purchases and refunds itself — they count even when the customer never comes back from the payment page.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="form.mp"><span class="qc-toggle-track"></span></span>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto" :style="{cursor: keyIsLocked() ? 'default' : 'pointer'}">
+                <div>
+                    <div class="qc-set-title">{{ 'Purchase as a key event'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px" x-show="!keyIsLocked()">{{ 'So GA4 reports and Google Ads can count it as a conversion.'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px" x-show="keyIsLocked()" x-cloak>{{ 'Already a key event in GA4. The module never removes key events — you can remove it in GA4.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="form.keyPurchase" :disabled="keyIsLocked()"><span class="qc-toggle-track"></span></span>
+            </label>
+            <template x-if="ackNeeded && form.mp">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div class="qc-alert qc-alert-danger">
+                    {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                    <div style="flex:1">{{ 'Google requires the user data collection acknowledgement for this property before a Measurement Protocol secret can be created.'|trans }}</div>
+                </div>
+                <label class="qc-hstack" style="justify-content:space-between;cursor:pointer;flex-wrap:nowrap">
+                    <span class="qc-set-title">{{ 'I acknowledge Google\'s user data collection terms for this property'|trans }}</span>
+                    <span class="qc-toggle"><input type="checkbox" x-model="form.ack"><span class="qc-toggle-track"></span></span>
+                </label>
+            </div>
+            </template>
+        </div>
+    </div>
+
+    {# Karta postepu "Set up Analytics" — wspolny pasek zadan (prototyp `taskSteps` / `tasks[cur]`). #}
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+        job: data.task|default('') ? data.job : null, type: 'analytics.setup', onDone: 'qiGa4SetupDone'
+    } only %}
+</div>

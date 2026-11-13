@@ -1,0 +1,92 @@
+{#
+  Blok "Scheduled tasks (cron)" — Settings i Summary kreatora (prototyp, `CRON_GROUPS`).
+
+  Zmienne:
+    cron     — `CronBlock::translated()` (rows z przetlumaczonymi name/desc/every i `when`, all)
+    full     — true w Settings: ostatnie uruchomienie, "Run now", "New token"
+    shopName — nazwa sklepu (multistore: "these are for …")
+    multistore
+  Linie curl / wget sklada przegladarka (`views/js/admin/cron.js`).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-grid" x-data="QICron({{ {
+        rows: cron.rows,
+        all: cron.all,
+        tool: 'curl',
+        way: 'separate',
+        runUrl: full|default(false) ? path('quince_insight_settings_cron_run') : '',
+        tokenUrl: full|default(false) ? path('quince_insight_settings_cron_token') : '',
+        i18n: {
+            finished: '%name% cron finished'|trans,
+            tokenDone: 'New token created — update the addresses on the server'|trans,
+            lastOk: 'Last run %when% · OK'|trans,
+            lastError: 'Last run %when% · failed'|trans,
+            lastLate: 'Last run %when% — expected %every%'|trans,
+            never: 'Not run yet'|trans,
+            justNow: 'just now'|trans
+        }
+    }|json_encode }})">
+    <div class="qi-head">
+        <div class="qc-set-row" style="align-items:center;gap:16px;flex-wrap:wrap">
+            <div class="qc-set-title">{{ 'Scheduled tasks (cron)'|trans }}</div>
+            <div class="qc-hstack" style="gap:10px">
+                <div class="qc-seg">
+                    <button type="button" class="qc-seg-btn" :class="{'is-active': way==='separate'}" @click="way='separate'">{{ 'Separate crons'|trans }}</button>
+                    <button type="button" class="qc-seg-btn" :class="{'is-active': way==='all'}" @click="way='all'">{{ 'One for everything'|trans }}</button>
+                </div>
+                <div class="qc-seg">
+                    <button type="button" class="qc-seg-btn" :class="{'is-active': tool==='curl'}" @click="tool='curl'">curl</button>
+                    <button type="button" class="qc-seg-btn" :class="{'is-active': tool==='wget'}" @click="tool='wget'">wget</button>
+                </div>
+            </div>
+        </div>
+        <div class="qc-line" style="margin-top:8px">{{ 'Add these lines to the cron on your server. How often each one runs is set there — the recommended frequency is shown next to it.'|trans }}{% if multistore|default(false) %}{{ ' Each shop has its own addresses — these are for %name%.'|trans({'%name%': shopName}) }}{% endif %}</div>
+    </div>
+    <template x-if="way==='separate'">
+    <div>
+        <template x-for="g in rows" :key="g.key">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div style="min-width:0">
+                    <div class="qc-hstack" style="gap:8px">
+                        {% if full|default(false) %}<span class="qc-dot" :class="{'is-on': !g.late}" :style="g.late ? {background: 'var(--warning)'} : {}"></span>{% endif %}
+                        <span class="qc-set-title" x-text="g.name"></span>
+                        <span class="qc-badge qc-badge-accent" x-text="{{ 'Recommended: %every%'|trans|json_encode }}.replace('%every%', g.every)"></span>
+                    </div>
+                    <div class="qc-line" style="margin-top:4px" x-text="g.desc"></div>
+                    <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap;margin-top:8px">
+                        <pre class="qc-pre qc-mono" style="flex:1;min-width:0;overflow-x:auto" x-text="line(g.key, g.expr)"></pre>
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="QI.copy(line(g.key, g.expr))">{{ 'Copy'|trans }}</button>
+                    </div>
+                    {% if full|default(false) %}
+                    <div class="qc-hstack" style="gap:14px;margin-top:8px">
+                        <span class="qc-line" style="margin:0" :style="g.late ? {color: 'var(--warning)'} : {}" x-text="lastText(g)"></span>
+                        <button type="button" class="qc-linkbtn" @click="run(g)" :disabled="running===g.key"><span class="qc-spinner" x-show="running===g.key"></span> {{ 'Run now'|trans }}</button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </template>
+    </div>
+    </template>
+    <template x-if="way==='all'">
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div style="min-width:0">
+                <div class="qc-hstack" style="gap:8px">
+                    <span class="qc-set-title">{{ 'Everything in one cron'|trans }}</span>
+                    <span class="qc-badge qc-badge-accent">{{ 'Recommended: every 5 minutes'|trans }}</span>
+                </div>
+                <div class="qc-line" style="margin-top:4px">{{ 'For hosting that limits the number of cron jobs. The module itself makes sure the daily tasks run once a day, not on every call.'|trans }}</div>
+                <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap;margin-top:8px">
+                    <pre class="qc-pre qc-mono" style="flex:1;min-width:0;overflow-x:auto" x-text="line('all', all.expr)"></pre>
+                    <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="QI.copy(line('all', all.expr))">{{ 'Copy'|trans }}</button>
+                </div>
+            </div>
+        </div>
+    </template>
+    {% if full|default(false) %}
+    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+        <div class="qc-line" style="margin:0">{{ 'If an address leaked, make a new token. The old addresses stop working at once.'|trans }}</div>
+        <button type="button" class="qc-linkbtn" @click="newToken()" :disabled="tokenBusy">{{ 'New token'|trans }}</button>
+    </div>
+    {% endif %}
+</div>

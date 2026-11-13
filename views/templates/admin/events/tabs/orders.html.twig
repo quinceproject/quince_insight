@@ -1,0 +1,55 @@
+{# Events -> Order log — 1:1 z prototypu. Filtr ?filter=, stronicowanie po stronie serwera. #}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% set cols = 'grid-template-columns:120px 140px 110px 140px 110px 190px 90px 24px' %}
+<div>
+    <div class="qc-filters">
+        <div class="qc-seg">
+            {% for f in [['all', 'All'], ['missing', 'No browser event'], ['blocked', 'Not sent from server'], ['refunds', 'Refunds']] %}
+                <a href="{{ path('quince_insight_events', {'tab': 'orders', 'filter': f[0]}) }}" class="qc-seg-btn{{ filter == f[0] ? ' is-active' }}"{% if filter == f[0] %} aria-current="page"{% endif %}>{{ f[1]|trans }}</a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="qc-grid">
+        <div class="qc-grid-head" style="{{ cols }};padding:10px 18px">
+            <div>{{ 'Order'|trans }}</div><div>{{ 'Date'|trans }}</div><div>{{ 'Total'|trans }}</div><div>{{ 'Payment'|trans }}</div><div>{{ 'Browser'|trans }}</div><div>{{ 'Server'|trans }}</div><div>{{ 'Refund'|trans }}</div><div></div>
+        </div>
+        {% for o in rows %}
+            <div x-data="qiEvents.order({{ o.id }})">
+                <div class="qc-grid-row qi-row" style="{{ cols }};cursor:pointer" @click="toggle()">
+                    <span class="qc-mono" style="font-size:var(--text-xs)">{{ o.ref }}</span>
+                    <span class="qc-line">{{ o.date }}</span>
+                    <span style="font-size:var(--text-sm)">{{ o.total }}</span>
+                    <span class="qc-line">{{ o.payment }}</span>
+                    <span><span class="qc-badge{{ o.browser ? ' qc-badge-success' }}">{{ o.browser ? 'Sent'|trans : 'Not reached'|trans }}</span></span>
+                    <span><span class="qc-badge{{ o.server.c ? ' ' ~ o.server.c }}">{{ o.server.t }}</span></span>
+                    <span class="qc-line">{{ o.refund == 'full' ? 'Full'|trans : (o.refund == 'partial' ? 'Partial'|trans : '—') }}</span>
+                    <span :style="{transform: open ? 'rotate(180deg)' : 'none', color: 'var(--fg-3)'}">{{ icons.icon('chevronDown', 14) }}</span>
+                </div>
+                <template x-if="open">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 1fr;align-items:start;background:var(--surface-sunken)">
+                    <div>
+                        <div class="qc-set-title" style="margin-bottom:10px">{{ 'Data sent to GA4'|trans }}</div>
+                        <pre class="qc-pre qc-mono" x-text="loaded ? payload : '…'"></pre>
+                    </div>
+                    <div class="qc-settings-list" style="gap:12px">
+                        <div class="qc-set-title">{{ 'Status'|trans }}</div>
+                        <div class="qc-line">{{ o.statusText }}</div>
+                        {% if o.canResend %}
+                            <div><button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click.stop="resend()">{{ 'Send to GA4'|trans }}</button></div>
+                        {% endif %}
+                        <template x-for="r in refunds" :key="r.slip + '-' + r.date">
+                            <div class="qc-line" x-text="(r.slip ? {{ 'Refund (credit slip)'|trans|json_encode }} : {{ 'Refund (order status)'|trans|json_encode }}) + ' · ' + r.date + ' · ' + r.amount.toFixed(2) + ' · ' + (r.status === 'sent' ? {{ 'sent'|trans|json_encode }} : (r.reason || r.status))"></div>
+                        </template>
+                    </div>
+                </div>
+                </template>
+            </div>
+        {% else %}
+            <div class="qc-empty"><div class="qc-empty-text">{{ 'No orders match this filter.'|trans }}</div></div>
+        {% endfor %}
+    </div>
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/listfoot.html.twig' with {
+        pagination: pagination, route: 'quince_insight_events', params: {'tab': 'orders', 'filter': filter}
+    } only %}
+</div>

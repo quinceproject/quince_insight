@@ -1,0 +1,110 @@
+{#
+  Krok kreatora `gsc` — 1:1 z prototypu (`cur==='gsc'`). Sam blok tresci; powloke i przyciski daje kreator (agent A).
+
+  Zmienne: `gsc` = `GscStep::data([$idShop])` (albo `data` — gdy powloka podaje dane kroku pod ta nazwa).
+  Pola formularza (dla `GscStep::save()` / trasy `quince_insight_gsc_save`):
+    property  — `prefix` | `sc-domain` | adres innej uslugi z konta
+    sitemap   — `module` | `existing`
+  Przycisk glowny kroku (prototyp `primaryLabel()`: „Generate and submit” / „Save and submit”, `QIWizardGsc`
+  w wizard.js) zapisuje wybor trasa `gsc_save` i uruchamia zadanie `sitemap.rebuild`, ktorego postep
+  pokazuje pasek ponizej (`QI.jobStart(job)`); po udanym zadaniu „Continue” wysyla formularz (`task_job`).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set d = gsc ?? data ?? {} %}
+{% set props = d.properties ?? null %}
+{% set domainOk = props ? props.domain.ok : false %}
+{% set domainSite = props ? props.domain.site : '' %}
+<div class="qc-disabled-area{{ d.needsGrant|default(false) ? ' is-off' : '' }}"
+     x-data="QIWizardGsc({{ {
+        property: d.choice|default('prefix'),
+        sitemap: d.sitemap|default('module'),
+        task: d.task|default(''),
+        taskJob: d.task|default('') == 'done' ? d.job.id|default(0) : 0,
+        shop: d.idShop|default(0),
+        needsGrant: d.needsGrant|default(false),
+        saveUrl: path('quince_insight_gsc_save'),
+        t: {
+            generate: 'Generate and submit'|trans, save: 'Save and submit'|trans, working: 'Working…'|trans,
+            retry: 'Try again'|trans, next: (wizard.single|default(false) ? 'Save and return to panel' : 'Continue')|trans
+        }
+     }|json_encode }})"
+     data-qi-step="gsc">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Search Console'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Pick the property for this shop and decide where the sitemap comes from.'|trans }}</div>
+        </div>
+    </div>
+
+    {% if d.error|default('') %}
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+            level: 'danger', text: 'Search Console did not answer: %message%', params: {'%message%': d.error|trans}
+        } only %}
+    {% endif %}
+
+    <input type="hidden" name="property" :value="property">
+    <input type="hidden" name="sitemap" :value="sitemap">
+    <input type="hidden" name="task_job" :value="taskJob">
+
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Property'|trans }}</div></div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;cursor:pointer">
+                <input type="radio" class="qc-radio" value="prefix" x-model="property">
+                <div>
+                    <div class="qc-mono" style="font-size:var(--text-sm)">{{ props ? props.prefix.site : d.shopUrl|default('') }}</div>
+                    <div class="qc-sub" style="margin-top:4px">{{ 'URL-prefix property · verified in the previous step'|trans }}</div>
+                </div>
+                <span class="qc-badge qc-badge-success">{{ 'Matches your shop'|trans }}</span>
+            </label>
+            <label class="qc-grid-row qi-row{{ domainOk ? '' : ' qc-disabled-area is-off' }}" style="grid-template-columns:auto 1fr auto;cursor:pointer">
+                <input type="radio" class="qc-radio" value="sc-domain" x-model="property"{% if not domainOk %} disabled{% endif %}>
+                <div>
+                    <div class="qc-mono" style="font-size:var(--text-sm)">{{ domainSite }}</div>
+                    <div class="qc-sub" style="margin-top:4px">{{ domainOk ? 'Domain property · covers every subdomain and http/https'|trans : 'Domain property · needs a DNS record, not verified on this account'|trans }}</div>
+                </div>
+                <span class="qc-badge">{{ domainOk ? 'Verified by DNS'|trans : 'Needs DNS'|trans }}</span>
+            </label>
+            {% for other in props ? props.others : [] %}
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="{{ other.site }}" x-model="property">
+                    <div>
+                        <div class="qc-mono" style="font-size:var(--text-sm)">{{ other.site }}</div>
+                        <div class="qc-sub" style="margin-top:4px">{{ other.site starts with 'sc-domain:' ? 'Domain property · different domain'|trans : 'URL-prefix property · different domain'|trans }}</div>
+                    </div>
+                    <span class="qc-badge qc-badge-warning" x-show="property === {{ other.site|json_encode }}">{{ 'Not this shop'|trans }}</span>
+                </label>
+            {% endfor %}
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Sitemap'|trans }}</div></div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                <input type="radio" class="qc-radio" value="module" x-model="sitemap" style="margin-top:2px">
+                <div>
+                    <div class="qc-hstack" style="gap:8px">
+                        <span class="qc-set-title">{{ 'Generate with Quince Insight'|trans }}</span>
+                        <span class="qc-badge qc-badge-accent">{{ 'Recommended'|trans }}</span>
+                    </div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Products with images, categories, CMS pages, brands. All shop languages with hreflang, rebuilt by cron.'|trans }}</div>
+                </div>
+            </label>
+            <label class="qc-grid-row qi-row{{ d.existing|default(null) ? '' : ' qc-disabled-area is-off' }}" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                <input type="radio" class="qc-radio" value="existing" x-model="sitemap" style="margin-top:2px"{% if not d.existing|default(null) %} disabled{% endif %}>
+                <div>
+                    <div class="qc-hstack" style="gap:8px">
+                        <span class="qc-set-title">{{ 'Use the existing sitemap'|trans }}</span>
+                        <span class="qc-badge">{{ d.existing|default(null) ? 'Found · %source%'|trans({'%source%': d.existing.source}) : 'Not found'|trans }}</span>
+                    </div>
+                    {% if d.existing|default(null) %}
+                        <div class="qc-mono" style="margin-top:4px;color:var(--fg-2)">{{ d.existing.url }}</div>
+                    {% endif %}
+                </div>
+            </label>
+        </div>
+    </div>
+
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+        job: d.job|default(null), type: 'sitemap.rebuild', onDone: 'qiGscSetupDone'
+    } only %}
+</div>

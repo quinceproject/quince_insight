@@ -1,0 +1,97 @@
+{#
+  Zakladka Promotions ekranu Merchant Center (agent M). Uklad 1:1 z prototypem (`gm.tab==='promotions'`).
+  Feed z kraju spoza listy Google (`MerchantTools\PromotionCountries`) — informacja zamiast listy
+  (ARCHITEKTURA §12 pkt 6).
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{# Ekran agenta E dolacza zakladke z {data: tabData}, podglad M z tabData wprost. #}
+{% set mt = mt is defined ? mt : (data.mt ?? {}) %}
+<script src="{{ asset('../modules/quince_insight/views/js/admin/merchant-tools.js') }}"></script>
+{% if not mt.feedId %}
+    <div class="qc-grid">
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {icon: 'box', title: 'No feed yet', text: 'Promotions belong to a feed. Add a feed first.'} only %}
+    </div>
+{% elseif not mt.supported %}
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Promotions on Google'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'From PrestaShop cart rules: percent off, amount off and free shipping.'|trans }}</div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+                    level: 'info',
+                    text: 'Google accepts promotions through the API only for feeds in %countries%. This feed is for %country%, so promotions cannot be sent from the module — create them in Merchant Center instead.',
+                    params: {'%countries%': mt.countries, '%country%': mt.countryName}
+                } only %}
+            </div>
+        </div>
+    </div>
+{% elseif not mt.hasAccount %}
+    <div class="qc-grid">
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {icon: 'box', title: 'No Merchant Center account', text: 'Choose a Merchant Center account first.'} only %}
+    </div>
+{% else %}
+<div class="qc-settings-list" x-data="QIMt.promotions({{ {
+    feedId: mt.feedId,
+    promos: mt.promos,
+    now: 'now'|date('Y-m-d H:i:s'),
+    statuses: {active: 'active'|trans, pending: 'pending'|trans, rejected: 'rejected'|trans, ended: 'ended'|trans, draft: 'draft'|trans},
+    urls: {scan: path('quince_insight_merchant_promo_scan'), send: path('quince_insight_merchant_promo_send')},
+    i18n: {justNow: 'just now'|trans, minAgo: '%n% min ago'|trans, hAgo: '%n% h ago'|trans}
+}|json_encode }})">
+    <div class="qc-grid">
+        <div class="qi-head qc-set-row">
+            <div>
+                <div class="qc-set-title">{{ 'Promotions on Google'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'From PrestaShop cart rules: percent off, amount off and free shipping.'|trans }}</div>
+            </div>
+            <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="find()" :disabled="scanning"><span class="qc-spinner" x-show="scanning"></span> {{ 'Find cart rules'|trans }}</button>
+        </div>
+        <div class="qc-grid-head" style="grid-template-columns:1fr 140px 80px 110px 100px 90px;padding:10px 18px"><div>{{ 'Name'|trans }}</div><div>{{ 'Type'|trans }}</div><div>{{ 'Value'|trans }}</div><div>{{ 'Code'|trans }}</div><div>{{ 'Google'|trans }}</div><div>{{ 'Last sync'|trans }}</div></div>
+        <template x-for="p in promos" :key="p.id">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 140px 80px 110px 100px 90px">
+                <div style="min-width:0">
+                    <span class="qc-set-title" x-text="p.name"></span>
+                    <div class="qc-error-text" x-show="p.error" x-text="p.error"></div>
+                </div>
+                <span class="qc-mono" x-text="p.type"></span>
+                <span class="qc-line" x-text="p.value"></span>
+                <span class="qc-mono" x-text="p.code || '—'"></span>
+                <span><span class="qc-badge" :class="badge(p)" x-text="statusLabel(p)"></span></span>
+                <span class="qc-line" x-text="ago(p)"></span>
+            </div>
+        </template>
+        <template x-if="!promos.length">
+            <div class="qc-empty"><div class="qc-empty-text">{{ 'No promotions on Google yet. Find cart rules to add one.'|trans }}</div></div>
+        </template>
+    </div>
+
+    <template x-if="Array.isArray(scan)">
+    <div class="qc-grid">
+        <div class="qi-head"><div class="qc-set-title">{{ 'Cart rules not on Google yet'|trans }}</div></div>
+        <template x-for="s in scan" :key="s.id">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 140px 110px 200px auto">
+                <span class="qc-set-title" x-text="s.name"></span>
+                <span class="qc-mono" x-text="s.type"></span>
+                <span class="qc-mono" x-text="s.code || {{ 'no code'|trans|json_encode }}"></span>
+                <span class="qc-line" x-text="s.period"></span>
+                <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="add(s)" :disabled="adding===s.id"><span class="qc-spinner" x-show="adding===s.id"></span> {{ 'Add to Google'|trans }}</button>
+            </div>
+        </template>
+        <template x-if="!scan.length && !skipped.length"><div class="qc-empty"><div class="qc-empty-text">{{ 'Every cart rule is already on Google.'|trans }}</div></div></template>
+        <template x-if="!scan.length && skipped.length"><div class="qc-empty"><div class="qc-empty-text">{{ 'No cart rule can be sent to Google — see the reasons below.'|trans }}</div></div></template>
+        <template x-for="s in skipped" :key="'skip' + s.id">
+            <div class="qc-grid-row qi-row qi-off" style="grid-template-columns:1fr 140px 110px 200px auto">
+                <span class="qc-set-title" x-text="s.name"></span>
+                <span class="qc-mono" x-text="s.type"></span>
+                <span class="qc-mono" x-text="s.code || {{ 'no code'|trans|json_encode }}"></span>
+                <span class="qc-line" x-text="s.period"></span>
+                <span class="qc-sub" x-text="s.reason"></span>
+            </div>
+        </template>
+    </div>
+    </template>
+</div>
+{% endif %}

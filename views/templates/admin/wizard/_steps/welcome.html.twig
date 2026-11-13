@@ -1,0 +1,17 @@
+{# Krok Welcome — uklad ekranu Support z Quince CMP (qc-about), 1:1 z prototypu `cur==='welcome'`. #}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/fields.html.twig' as fields %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<form id="qi-wizard-form" method="post" action="{{ path('quince_insight_wizard_save') }}">
+    {{ fields.csrf('quince_insight_wizard_save') }}
+    <input type="hidden" name="_step" value="welcome">
+    <div class="qc-grid">
+        <div class="qc-about">
+            <div class="qc-about-mark">{{ icons.icon('layout', 28) }}</div>
+            <div class="qc-about-name">{{ 'Welcome to Quince Insight'|trans }}</div>
+            <div class="qc-about-tagline">{{ 'Your shop, connected to Google'|trans }}</div>
+            <div class="qc-about-claim">{{ 'In the next steps you choose which Google services to connect, then set them up one by one. It takes about 15 minutes, and you can stop and come back at any time.'|trans }}</div>
+            <button type="submit" class="qc-btn qc-btn-primary" style="margin-top:8px">{{ 'Start setup'|trans }}</button>
+        </div>
+    </div>
+</form>

@@ -1,0 +1,8 @@
+/vendor/
+/var/
+/config*.xml
+/config/dev.php
+/node_modules/
+/build/
+.env
+*.log

@@ -1,0 +1,31 @@
+{#
+  Informacje z tabeli `notice` (prototyp: alert "The shop … was deleted." z "Dismiss").
+  Zmienne: notices (NoticeRepository::open()).
+  Pozycje listy pisza uslugi (`leftInGoogle()`) — tlumaczone, gdy sa stalym tekstem.
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% for notice in notices %}
+    <div class="qc-alert qc-alert-info" style="margin-bottom:20px" x-data="{ gone: false, busy: false }" x-show="!gone">
+        {{ icons.message('info', 18, 'qc-alert-icon') }}
+        <div style="flex:1">
+            {% if notice.kind == 'shop_deleted' %}
+                <strong>{{ 'The shop “%name%” was deleted.'|trans({'%name%': notice.title}) }}</strong>
+                {{ 'Its settings, logs and sitemap files were removed from the module and its crons no longer run. Nothing was deleted at Google — this is what is still there:'|trans }}
+            {% else %}
+                <strong>{{ notice.title|trans }}</strong>
+            {% endif %}
+            {% if notice.items %}
+                <ul style="margin:8px 0 0;padding-left:18px">
+                    {% for item in notice.items %}
+                        <li>{{ item|trans }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            <div style="margin-top:8px">
+                <button type="button" class="qc-linkbtn" :disabled="busy"
+                    @click="busy = true; QI.post({{ path('quince_insight_overview_dismiss')|json_encode }}, {id: {{ notice.id_notice }}}).then(r => { busy = false; if (r.ok) { gone = true; } })">{{ 'Dismiss'|trans }}</button>
+            </div>
+        </div>
+    </div>
+{% endfor %}

@@ -1,0 +1,427 @@
+{#
+  Krok kreatora `gtm` — 1:1 z prototypu (`cur==='gtm'`, `gtmChanges()`, `taskLines('gtm')`).
+  Sam blok tresci wewnatrz formularza kreatora `#qi-wizard-form` (agent A).
+
+  Zmienne: data — `GtmStep::data([$sklep])`; errors — bledy ostatniego `save()` (opcjonalnie).
+
+  Przycisk glowny paska akcji (kontrakt powloki `QIWizard.primary`):
+    auto:   "Review changes" -> sam podglad z formularza (gtm_plan, BEZ zapisu) -> "Apply and publish"
+            -> zapis (gtm_save) + zadanie `gtm.apply` z paskiem postepu ("Working…") -> "Continue".
+            Zmiana czegokolwiek po podgladzie wraca do "Review changes"; "Cancel"/"Back" przed
+            publikacja niczego nie zostawia (poprawka 2026-11-13).
+    own:    "Save" -> zadanie `gtm.apply` w trybie own (2 kroki) -> "Continue"
+    shared: "Save" -> zapis -> "Continue" (kontenerem zarzadza inny sklep)
+  Decyzja #7: kontener innego sklepu jest „shared” tylko przy tej samej usludze GA4
+  (`usedBy[].sameGa4`); przy innej w trybie auto nie da sie go wybrac — podpowiedz osobnego
+  kontenera. Serwer sprawdza to samo (`ContainerService::select`).
+  "Continue" wysyla formularz kroku (pola `name` nizej) do `GtmStep::save()`.
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% set d = data %}
+{% set errs = errors|default({}) %}
+<script>
+window.qiGtmJobDone = window.qiGtmJobDone || function (job) {
+    window.dispatchEvent(new CustomEvent('qi:gtm-done', { detail: job }));
+};
+window.qiGtmStep = window.qiGtmStep || function (cfg) {
+    return {
+        form: cfg.form,
+        accounts: cfg.accounts,
+        reviewed: false,
+        rows: [],
+        newContainer: false,
+        busy: false,
+        task: cfg.task,
+        events: cfg.events,
+        init: function () {
+            var self = this;
+            var unblock = function () {
+                if (self.blocked(self.current())) {
+                    self.form.container = self.accounts.length ? 'new' : '';
+                }
+            };
+            unblock();
+            this.$watch('form.mode', unblock);
+            window.addEventListener('qi:gtm-done', function (e) {
+                self.task = e.detail && e.detail.status === 'done' ? 'done' : 'error';
+                self.sync();
+            });
+            this.$watch('form', function () {
+                if (self.task === 'done' && !self.busy) {
+                    self.task = '';
+                }
+                // Podglad dotyczy konkretnych wyborow — po zmianie trzeba go policzyc od nowa.
+                if (!self.busy && self.reviewed) {
+                    self.reviewed = false;
+                    self.rows = [];
+                }
+                self.sync();
+            }, { deep: true });
+            this.$nextTick(function () { self.sync(); });
+        },
+        containers: function () {
+            var out = [];
+            this.accounts.forEach(function (a) {
+                a.containers.forEach(function (c) { out.push(Object.assign({ account: a.name }, c)); });
+            });
+            return out;
+        },
+        current: function () {
+            var path = this.form.container;
+            return this.containers().find(function (c) { return c.path === path; }) || null;
+        },
+        managedBy: function (c) {
+            var owner = (c && c.usedBy || []).find(function (u) { return u.mode === 'auto'; });
+            return owner ? owner.name : '';
+        },
+        shared: function () {
+            return this.form.mode === 'auto' && this.form.container !== 'new' && this.managedBy(this.current()) !== '';
+        },
+        otherGa4: function (c) {
+            var owner = (c && c.usedBy || []).find(function (u) { return u.mode === 'auto'; });
+            return !!owner && owner.sameGa4 === false;
+        },
+        blocked: function (c) {
+            return this.form.mode === 'auto' && this.otherGa4(c);
+        },
+        eventCount: function () {
+            var f = this.form;
+            return this.events.filter(function (e) { return f.events[e]; }).length;
+        },
+        payload: function () {
+            var f = this.form, out = {
+                id_shop: cfg.idShop, mode: f.mode, container: f.container, account: f.account,
+                ga4_mid: f.mid, ga4_secret: f.apiSecret, consent: f.consent, cookie: f.cookie,
+                server_purchase: f.serverPurchase ? 1 : 0, server_refund: f.serverRefund ? 1 : 0
+            };
+            this.events.forEach(function (e) { out['ev_' + e] = f.events[e] ? 1 : 0; });
+            return out;
+        },
+        label: function () {
+            if (this.task === 'done') { return null; }
+            if (this.task === 'running') { return cfg.t.working; }
+            if (this.task === 'error') { return cfg.t.retry; }
+            if (this.form.mode === 'auto' && !this.shared()) {
+                return this.reviewed ? cfg.t.apply : cfg.t.review;
+            }
+            return cfg.t.save;
+        },
+        sync: function () {
+            if (!window.QIWizard || typeof window.QIWizard.primary !== 'function') {
+                return;
+            }
+            var self = this, label = this.label();
+            if (label === null) {
+                window.QIWizard.primary(null);
+                return;
+            }
+            window.QIWizard.primary({
+                label: label,
+                disabled: !cfg.granted || this.busy || this.task === 'running',
+                busy: this.busy || this.task === 'running',
+                onClick: function () { self.primary(); }
+            });
+        },
+        primary: function () {
+            if (this.form.mode === 'auto' && !this.shared() && !this.reviewed && this.task !== 'error') {
+                return this.review();
+            }
+            return this.apply();
+        },
+        save: function () {
+            var self = this;
+            self.busy = true;
+            self.sync();
+            return QI.post(cfg.saveUrl, this.payload()).then(function (r) {
+                self.busy = false;
+                self.sync();
+                return r;
+            });
+        },
+        review: function () {
+            var self = this;
+            self.busy = true;
+            self.sync();
+            // Sam podglad: plan liczony z biezacego formularza, nic nie jest zapisywane.
+            QI.post(cfg.planUrl, this.payload()).then(function (p) {
+                self.busy = false;
+                if (p.ok) {
+                    self.rows = p.plan.rows;
+                    self.newContainer = p.plan.newContainer;
+                    self.reviewed = true;
+                    window.scrollTo(0, 0);
+                }
+                self.sync();
+            });
+        },
+        apply: function () {
+            var self = this;
+            var start = function () {
+                self.busy = true;
+                self.sync();
+                QI.post(cfg.applyUrl, { id_shop: cfg.idShop }).then(function (r) {
+                    self.busy = false;
+                    if (r.ok && r.job) {
+                        self.task = r.job.status === 'done' ? 'done' : 'running';
+                        QI.jobStart(r.job);
+                    }
+                    self.sync();
+                });
+            };
+            if (this.shared()) {
+                return this.save().then(function (r) { if (r.ok) { self.task = 'done'; self.sync(); } });
+            }
+            // Zapis wyborow dopiero teraz — razem z publikacja (auto) albo zapisem (own).
+            return this.save().then(function (r) { if (r.ok) { start(); } });
+        }
+    };
+};
+</script>
+<div class="qc-disabled-area{{ d.granted ? '' : ' is-off' }}" data-qi-step="gtm"
+     x-data="qiGtmStep({{ {
+        form: d.form,
+        accounts: d.accounts,
+        events: d.eventList,
+        idShop: d.idShop,
+        granted: d.granted,
+        task: d.job and d.job.active ? 'running' : (d.upToDate and d.job and d.job.status == 'done' ? 'done' : ''),
+        saveUrl: path('quince_insight_gtm_save'),
+        planUrl: path('quince_insight_gtm_plan'),
+        applyUrl: path('quince_insight_gtm_apply'),
+        t: {
+            review: 'Review changes'|trans,
+            apply: 'Apply and publish'|trans,
+            save: 'Save'|trans,
+            working: 'Working…'|trans,
+            retry: 'Try again'|trans
+        }
+     }|json_encode }})">
+    <input type="hidden" name="id_shop" value="{{ d.idShop }}">
+    <input type="hidden" name="mode" :value="form.mode">
+    <input type="hidden" name="container" :value="form.container">
+    <input type="hidden" name="account" :value="form.account">
+    <input type="hidden" name="ga4_mid" :value="form.mid">
+    <input type="hidden" name="ga4_secret" :value="form.apiSecret">
+    <input type="hidden" name="consent" :value="form.consent">
+    <input type="hidden" name="cookie" :value="form.cookie">
+    <input type="hidden" name="server_purchase" :value="form.serverPurchase ? 1 : 0">
+    <input type="hidden" name="server_refund" :value="form.serverRefund ? 1 : 0">
+    {% for e in d.eventList %}
+        <input type="hidden" name="ev_{{ e }}" :value="form.events[{{ e|json_encode }}] ? 1 : 0">
+    {% endfor %}
+
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Tag Manager'|trans }}</div>
+            <div class="qc-head-desc">{{ d.ads ? 'Sends shop events to Analytics and Google Ads, with consent respected.'|trans : 'Sends shop events to Analytics, with consent respected.'|trans }}</div>
+        </div>
+    </div>
+
+    {% if d.error %}
+        <div style="margin-bottom:16px">
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'danger', text: d.error} only %}
+        </div>
+    {% endif %}
+
+    <!-- przeglad zmian -->
+    <template x-if="form.mode==='auto' && reviewed">
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title" x-text="newContainer ? {{ 'Changes in the new container'|trans|json_encode }} : {{ 'Changes in %id%'|trans|json_encode }}.replace('%id%', current() ? current().publicId : '')"></div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Nothing is published until you click Apply and publish.'|trans }}</div>
+            </div>
+            <div class="qc-grid-head" style="grid-template-columns:120px 1fr 80px 100px;padding:10px 18px">
+                <div>{{ 'Type'|trans }}</div><div>{{ 'Name'|trans }}</div><div>{{ 'Count'|trans }}</div><div>{{ 'Change'|trans }}</div>
+            </div>
+            <template x-for="r in rows" :key="r.name + r.op">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:120px 1fr 80px 100px">
+                    <div class="qc-line" x-text="r.type"></div>
+                    <div style="font-size:var(--text-sm)" x-text="r.name"></div>
+                    <div class="qc-line" x-text="r.count"></div>
+                    <div><span class="qc-badge" :class="r.badge ? 'qc-badge-' + r.badge : ''" x-text="r.change"></span></div>
+                </div>
+            </template>
+        </div>
+        <div class="qc-alert qc-alert-info">
+            {{ icons.icon('info', 18, 'qc-alert-icon') }}
+            <div>{{ 'Items are matched by name. Running the setup again updates them instead of adding duplicates. Anything else in the container is left alone.'|trans }}</div>
+        </div>
+        <div x-show="task === ''"><button type="button" class="qc-linkbtn" @click="reviewed=false">{{ 'Change settings'|trans }}</button></div>
+    </div>
+    </template>
+
+    <template x-if="!(form.mode==='auto' && reviewed)">
+    <div class="qc-cols">
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'How should the module work with Tag Manager?'|trans }}</div></div>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;align-items:start;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="auto" x-model="form.mode" style="margin-top:2px">
+                    <div>
+                        <div class="qc-set-title">{{ 'Set up the container for me'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Creates the tags, triggers and variables, shows you the list, then publishes.'|trans }}</div>
+                    </div>
+                    <span class="qc-badge qc-badge-accent">{{ 'Recommended'|trans }}</span>
+                </label>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;align-items:start;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="own" x-model="form.mode" @change="if (form.container==='new') form.container = (containers()[0] || {path: ''}).path" style="margin-top:2px">
+                    <div>
+                        <div class="qc-set-title">{{ 'I manage the container myself'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Only the GTM snippet and the dataLayer are added. Tags are up to you.'|trans }}</div>
+                    </div>
+                    <span></span>
+                </label>
+            </div>
+
+            {% if d.ads %}
+            <div class="qc-alert qc-alert-info" x-show="form.mode==='own'" x-cloak>
+                {{ icons.icon('info', 18, 'qc-alert-icon') }}
+                <div>{{ 'Add the Google Ads conversion tag in GTM yourself, with the ID and label from the previous step.'|trans }}</div>
+            </div>
+            {% endif %}
+
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Container'|trans }}</div></div>
+                <template x-for="c in containers()" :key="c.path">
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr" :class="{'qc-disabled-area is-off': blocked(c)}" :style="{cursor: blocked(c) ? 'default' : 'pointer'}">
+                        <input type="radio" class="qc-radio" :value="c.path" x-model="form.container" :disabled="blocked(c)">
+                        <div>
+                            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)" x-text="c.publicId + ' · ' + c.name"></div>
+                            <div class="qc-sub" style="margin-top:4px" x-text="{{ 'Web container'|trans|json_encode }} + (accounts.length > 1 ? ' · ' + c.account : '')"></div>
+                            <div class="qc-line" style="margin-top:4px" x-show="form.mode==='auto' && managedBy(c) && !otherGa4(c)" x-text="{{ 'Set up from %shop%. This shop adds only the snippet and uses the events of that shop.'|trans|json_encode }}.replace('%shop%', managedBy(c))"></div>
+                            <div class="qc-line" style="margin-top:4px" x-show="blocked(c)" x-cloak x-text="{{ 'Set up from %shop%, which uses a different GA4 property. A shared container would mix the data of both shops — create a separate container for this shop.'|trans|json_encode }}.replace('%shop%', managedBy(c))"></div>
+                        </div>
+                    </label>
+                </template>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer" x-show="form.mode==='auto' && accounts.length">
+                    <input type="radio" class="qc-radio" value="new" x-model="form.container">
+                    <div style="min-width:0">
+                        <div class="qc-set-title">{{ 'Create a container “%name%”'|trans({'%name%': d.newName}) }}</div>
+                        <template x-if="form.container==='new' && accounts.length > 1">
+                        <div style="margin-top:12px">
+                            <label class="qc-label">{{ 'Tag Manager account'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select class="qc-field-base qc-select qc-focusable" x-model="form.account">
+                                    <template x-for="a in accounts" :key="a.path">
+                                        <option :value="a.path" x-text="a.name" :selected="a.path === form.account"></option>
+                                    </template>
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                        </div>
+                        </template>
+                    </div>
+                </label>
+                {% if d.granted and not d.error %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="!accounts.length" x-cloak>
+                    <div class="qc-line">{{ 'This Google account has no Tag Manager account yet. Create one at tagmanager.google.com, then open this step again.'|trans }}</div>
+                </div>
+                {% endif %}
+                {% if errs.container is defined %}<div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><div class="qc-hint" style="color:var(--danger)">{{ errs.container|trans }}</div></div>{% endif %}
+            </div>
+
+            {% if not d.ga4 %}
+            <div class="qc-grid">
+                <div class="qi-head">
+                    <div class="qc-set-title">{{ 'GA4 without the Analytics step'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Analytics is not connected, so the module needs the IDs by hand.'|trans }}</div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div>
+                        <label class="qc-label">{{ 'Measurement ID'|trans }}</label>
+                        <input type="text" class="qc-field-base qc-focusable qc-mono" x-model="form.mid" placeholder="G-…">
+                        {% if errs.ga4_mid is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errs.ga4_mid|trans }}</div>{% endif %}
+                    </div>
+                    <div>
+                        <label class="qc-label">{{ 'Measurement Protocol secret'|trans }}</label>
+                        <input type="password" class="qc-field-base qc-focusable qc-mono" x-model="form.apiSecret" autocomplete="new-password"{% if d.hasSecret %} placeholder="{{ 'saved'|trans }}"{% endif %}>
+                        <div class="qc-hint">{{ 'Optional. Without it, purchases are sent only from the browser.'|trans }}</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="qc-grid">
+                <div class="qi-head">
+                    <div class="qc-set-title">{{ 'Consent'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Where Consent Mode v2 signals come from.'|trans }}</div>
+                </div>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;align-items:start;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="qcmp" x-model="form.consent" style="margin-top:2px">
+                    <div>
+                        <div class="qc-set-title">{{ 'Quince CMP'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Tags wait for the visitor\'s decision in the Quince CMP banner.'|trans }}</div>
+                    </div>
+                    {% if d.qcmp %}<span class="qc-badge qc-badge-success">{{ 'Detected'|trans }}</span>{% else %}<span></span>{% endif %}
+                </label>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="other" x-model="form.consent" style="margin-top:2px">
+                    <div style="min-width:0">
+                        <div class="qc-set-title">{{ 'Another consent tool'|trans }}</div>
+                        <template x-if="form.consent==='other'">
+                        <div style="margin-top:12px">
+                            <label class="qc-label">{{ 'Consent cookie name'|trans }}</label>
+                            <input type="text" class="qc-field-base qc-focusable qc-mono" x-model="form.cookie">
+                            <div class="qc-hint">{{ 'Analytics and marketing consent are read from it before anything is sent from the server.'|trans }}</div>
+                            {% if errs.cookie is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errs.cookie|trans }}</div>{% endif %}
+                        </div>
+                        </template>
+                    </div>
+                </label>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="none" x-model="form.consent" style="margin-top:2px">
+                    <div>
+                        <div class="qc-set-title">{{ 'No consent tool'|trans }}</div>
+                        <div class="qc-alert qc-alert-warning" style="margin-top:12px" x-show="form.consent==='none'" x-cloak>
+                            {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                            <div>{{ 'In the EU and EEA, Google requires consent signals for ads and remarketing. Without them, conversions and audiences are limited.'|trans }}</div>
+                        </div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head qc-set-row">
+                    <div class="qc-set-title">{{ 'Events'|trans }}</div>
+                    <span class="qc-line" x-text="{{ '%n% of %total%'|trans|json_encode }}.replace('%n%', eventCount()).replace('%total%', events.length)"></span>
+                </div>
+                <template x-for="e in events" :key="e">
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer;padding-top:10px;padding-bottom:10px">
+                        <span class="qc-mono" style="font-size:var(--text-sm)" x-text="e"></span>
+                        <span class="qc-toggle"><input type="checkbox" x-model="form.events[e]"><span class="qc-toggle-track"></span></span>
+                    </label>
+                </template>
+            </div>
+
+            <div class="qc-grid">
+                <div class="qi-head">
+                    <div class="qc-set-title">{{ 'Sent from the server'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Only for visitors who consented to analytics.'|trans }}</div>
+                </div>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                    <div class="qc-set-title">{{ 'Purchases'|trans }}</div>
+                    <span class="qc-toggle"><input type="checkbox" x-model="form.serverPurchase"><span class="qc-toggle-track"></span></span>
+                </label>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                    <div>
+                        <div class="qc-set-title">{{ 'Refunds and cancellations'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Partial refunds send only the refunded products and amount.'|trans }}</div>
+                    </div>
+                    <span class="qc-toggle"><input type="checkbox" x-model="form.serverRefund"><span class="qc-toggle-track"></span></span>
+                </label>
+            </div>
+        </div>
+    </div>
+    </template>
+
+    {# postep zadania (wspolne w prototypie) — zadanie `gtm.apply` #}
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+        job: d.job and (d.job.active or d.upToDate) ? d.job : null,
+        type: 'gtm.apply',
+        onDone: 'qiGtmJobDone'
+    } only %}
+</div>

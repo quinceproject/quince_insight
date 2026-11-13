@@ -1,0 +1,43 @@
+{#
+  Ekran Search Console — 1:1 z prototypu (`pg==='gsc'`): zakladki Overview i Sitemap (?tab=).
+  Okres 7 / 28 / 90 dni przelaczany w przegladarce (dane wszystkich okresow z serwera, jak w prototypie).
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_scripts %}
+    <script src="{{ asset('../modules/quince_insight/views/js/admin/gsc.js') ~ '?v=' ~ qcVersion|default('0.1.0') }}" defer></script>
+{% endblock %}
+
+{% block quince_body %}
+{% set tpl = '@Modules/quince_insight/views/templates/admin/gsc/' %}
+{% set partials = '@Modules/quince_insight/views/templates/admin/_partials/' %}
+<div class="qc-screen">
+    <div class="qc-head" style="margin-bottom:20px">
+        <div>
+            <div class="qc-head-title">{{ 'Search Console'|trans }}</div>
+            <div class="qc-head-desc">{{ 'How the shop shows up in Google search, and the sitemap the module sends.'|trans }}</div>
+        </div>
+        <a class="qc-btn qc-btn-outline" style="align-self:flex-start" href="https://search.google.com/search-console{{ gsc.site ? '?resource_id=' ~ gsc.site|url_encode : '' }}" target="_blank" rel="noopener">{{ 'Open Search Console'|trans }}</a>
+    </div>
+
+    {% if gsc.site == '' %}
+        <div class="qc-grid">
+            {% include partials ~ 'empty.html.twig' with {
+                icon: 'search', title: 'Search Console is not set up yet',
+                text: 'Pick the Search Console property for this shop and decide where the sitemap comes from.',
+                action: {label: 'Set up Search Console', url: path('quince_insight_wizard', {'step': 'gsc'})}
+            } only %}
+        </div>
+    {% else %}
+        {% include partials ~ 'tabs.html.twig' with {tabs: tabs, route: 'quince_insight_gsc'} only %}
+
+        {% if tabs.current == 'sitemap' %}
+            {% include tpl ~ 'tabs/sitemap.html.twig' %}
+        {% else %}
+            {% include tpl ~ 'tabs/overview.html.twig' %}
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

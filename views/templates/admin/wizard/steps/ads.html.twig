@@ -1,0 +1,58 @@
+{#
+  Krok kreatora `ads` — 1:1 z prototypu (`cur==='ads'`). Sam blok tresci wewnatrz formularza
+  kreatora `#qi-wizard-form`; "Continue" wysyla pola do `AdsStep::save()`.
+
+  Zmienne: data — `AdsStep::data([$sklep])`; errors — bledy ostatniego `save()` (opcjonalnie).
+  Pola: conversion_id, conversion_label, remarketing (0/1), enhanced (0/1).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set f = data.form %}
+{% set errs = errors|default({}) %}
+<div data-qi-step="ads">
+    <input type="hidden" name="id_shop" value="{{ data.idShop }}">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Google Ads'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Purchase conversions and remarketing. The tags go into your container in the next step, Tag Manager, together with Analytics.'|trans }}</div>
+        </div>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Purchase conversion'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div>
+                    <label class="qc-label" for="qi-ads-id">{{ 'Conversion ID'|trans }}</label>
+                    <input type="text" id="qi-ads-id" name="conversion_id" class="qc-field-base qc-focusable qc-mono" value="{{ f.convId }}" placeholder="AW-…">
+                    {% if errs.conversion_id is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errs.conversion_id|trans }}</div>{% endif %}
+                </div>
+                <div>
+                    <label class="qc-label" for="qi-ads-label">{{ 'Conversion label'|trans }}</label>
+                    <input type="text" id="qi-ads-label" name="conversion_label" class="qc-field-base qc-focusable qc-mono" value="{{ f.label }}">
+                    {% if errs.conversion_label is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errs.conversion_label|trans }}</div>{% endif %}
+                    <div class="qc-hint">{{ 'In Google Ads: Goals → Conversions → your purchase action → Tag setup → Use Google Tag Manager.'|trans }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer;border-top:0">
+                    <div>
+                        <div class="qc-set-title">{{ 'Remarketing on every page'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Builds audiences of visitors for your campaigns.'|trans }}</div>
+                    </div>
+                    <span class="qc-toggle"><input type="hidden" name="remarketing" value="0"><input type="checkbox" name="remarketing" value="1"{{ f.remarketing ? ' checked' }}><span class="qc-toggle-track"></span></span>
+                </label>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                    <div>
+                        <div class="qc-set-title">{{ 'Enhanced conversions'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Sends the customer\'s e-mail and phone with the purchase, hashed. Only with marketing consent.'|trans }}</div>
+                    </div>
+                    <span class="qc-toggle"><input type="hidden" name="enhanced" value="0"><input type="checkbox" name="enhanced" value="1"{{ f.enhanced ? ' checked' }}><span class="qc-toggle-track"></span></span>
+                </label>
+            </div>
+            <div class="qc-hint">{{ 'Connecting the Google Ads API — creating the conversion automatically and linking Ads with Merchant Center — is planned for a later version.'|trans }}</div>
+        </div>
+    </div>
+</div>

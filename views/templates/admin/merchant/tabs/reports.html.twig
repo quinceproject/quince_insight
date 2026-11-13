@@ -1,0 +1,174 @@
+{#
+  Zakladka Reports ekranu Merchant Center (agent M). Uklad 1:1 z prototypem (`gm.tab==='reports'`):
+  okres, kraj, cztery liczby z porownaniem do poprzedniego okresu, klikniecia dziennie, tabela
+  By product / By country. Ponizej raporty rynkowe (konkurencyjnosc cen, bestsellery) — gdy konto
+  ma do nich dostep; bez dostepu informacja (PLAN §4 M).
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{# Ekran agenta E dolacza zakladke z {data: tabData}, podglad M z tabData wprost. #}
+{% set mt = mt is defined ? mt : (data.mt ?? {}) %}
+<script src="{{ asset('../modules/quince_insight/views/js/admin/merchant-tools.js') }}"></script>
+{% if not mt.hasAccount %}
+    <div class="qc-grid">
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {icon: 'search', title: 'No Merchant Center account', text: 'Choose a Merchant Center account first.'} only %}
+    </div>
+{% else %}
+<div class="qc-settings-list" x-data="QIMt.reports({{ {
+    market: mt.marketCountry,
+    urls: {report: path('quince_insight_merchant_report')},
+    i18n: {items0: '0 items'|trans, of: 'of'|trans}
+}|json_encode }})">
+    <div class="qc-filters" style="margin-bottom:0">
+        <div class="qc-seg">
+            {% for p in mt.periods %}
+                <button type="button" class="qc-seg-btn" :class="{'is-active': period==='{{ p }}'}" @click="setPeriod('{{ p }}')">{{ '%n% days'|trans({'%n%': p}) }}</button>
+            {% endfor %}
+        </div>
+        <div class="qc-select-wrap" style="width:180px">
+            <select class="qc-field-base qc-select qc-focusable" style="width:100%" x-model="country" @change="load(false)">
+                <option value="all">{{ 'All countries'|trans }}</option>
+                <template x-for="c in (data ? data.countries : [])" :key="c"><option :value="c" x-text="countryName(c)" :selected="c===country"></option></template>
+            </select>
+            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+        </div>
+        <button type="button" class="qc-btn qc-btn-sm qc-btn-text" @click="load(true)" :disabled="loading"><span class="qc-spinner" x-show="loading"></span> {{ icons.icon('refresh', 14) }} {{ 'Refresh'|trans }}</button>
+    </div>
+
+    <template x-if="error">
+        <div class="qc-alert qc-alert-danger" role="alert">{{ icons.message('danger', 18, 'qc-alert-icon') }}<div style="flex:1" x-text="error"></div></div>
+    </template>
+
+    <template x-if="data && data.unavailable">
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'info', text: 'Google does not provide reports for advanced (multi-client) accounts. Open the report of a sub-account.'} only %}
+    </template>
+
+    <template x-if="data && !data.unavailable && !data.hasData">
+        <div class="qc-grid">
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {icon: 'search', title: 'No data yet', text: 'Google shows impressions and clicks a day or two after products start appearing.'} only %}
+        </div>
+    </template>
+
+    <template x-if="data && !data.unavailable && data.hasData">
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:repeat(4,1fr);border-top:0">
+                <div><span class="qc-caption">{{ 'Impressions'|trans }}</span><div style="font-size:var(--text-base);font-weight:var(--weight-bold)" x-text="fmt(data.impressions)"></div><span class="qc-badge" :class="changeClass(data.change.impressions)" x-show="change(data.change.impressions)!==null" x-text="change(data.change.impressions)"></span></div>
+                <div><span class="qc-caption">{{ 'Clicks'|trans }}</span><div style="font-size:var(--text-base);font-weight:var(--weight-bold)" x-text="fmt(data.clicks)"></div><span class="qc-badge" :class="changeClass(data.change.clicks)" x-show="change(data.change.clicks)!==null" x-text="change(data.change.clicks)"></span></div>
+                <div><span class="qc-caption">{{ 'CTR'|trans }}</span><div style="font-size:var(--text-base);font-weight:var(--weight-bold)" x-text="(data.ctr * 100).toFixed(1) + '%'"></div><span class="qc-badge" :class="changeClass(data.change.ctr)" x-show="change(data.change.ctr, ' pp')!==null" x-text="change(data.change.ctr, ' pp')"></span></div>
+                <div><span class="qc-caption">{{ 'Products with clicks'|trans }}</span><div style="font-size:var(--text-base);font-weight:var(--weight-bold)" x-text="fmt(data.productsWithClicks)"></div><span class="qc-badge" :class="changeClass(data.change.productsWithClicks)" x-show="change(data.change.productsWithClicks)!==null" x-text="change(data.change.productsWithClicks)"></span></div>
+            </div>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head qc-set-row">
+                <div class="qc-set-title">{{ 'Clicks per day'|trans }}</div>
+                <span class="qc-line" x-text="{{ 'Last %n% days'|trans|json_encode }}.replace('%n%', period)"></span>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div style="display:flex;align-items:flex-end;gap:3px;height:120px">
+                    <template x-for="d in data.trend" :key="d.day">
+                        <div style="flex:1;border-radius:3px 3px 0 0;background:var(--accent)" :style="{height: d.pct + '%'}" :title="d.day + ': ' + fmt(d.clicks)"></div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-tabs" style="margin:0;border-bottom:0">
+                    <a href="#" class="qc-tab" :class="{'is-active': reportTab==='product'}" @click.prevent="reportTab='product'; page=1">{{ 'By product'|trans }}</a>
+                    <a href="#" class="qc-tab" :class="{'is-active': reportTab==='country'}" @click.prevent="reportTab='country'; page=1">{{ 'By country'|trans }}</a>
+                </div>
+            </div>
+            <div class="qc-grid-head" style="grid-template-columns:1fr 120px 120px 80px;padding:10px 18px">
+                <div x-text="reportTab==='product' ? {{ 'Product'|trans|json_encode }} : {{ 'Country'|trans|json_encode }}"></div><div>{{ 'Impressions'|trans }}</div><div>{{ 'Clicks'|trans }}</div><div>{{ 'CTR'|trans }}</div>
+            </div>
+            <template x-for="r in pageRows()" :key="r.key">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 120px 120px 80px">
+                    <div style="min-width:0">
+                        <span class="qc-set-title" x-text="r.name"></span>
+                        <div class="qc-sub qc-mono" x-show="r.sub" x-text="r.sub"></div>
+                    </div>
+                    <span class="qc-line" x-text="fmt(r.imp)"></span>
+                    <span class="qc-line" x-text="fmt(r.clk)"></span>
+                    <span class="qc-line" x-text="ctr(r.clk, r.imp)"></span>
+                </div>
+            </template>
+        </div>
+        <div class="qc-listfoot" x-show="rows().length > 10">
+            <div class="qc-pagination">
+                <button type="button" class="qc-page-btn" :disabled="page===1" @click="go(page - 1)">‹</button>
+                <template x-for="(n, i) in nums()" :key="i">
+                    <button type="button" class="qc-page-btn" :class="{'qc-active': n===page}" :disabled="n==='…'" @click="n!=='…' && go(n)" x-text="n"></button>
+                </template>
+                <button type="button" class="qc-page-btn" :disabled="page===pages()" @click="go(page + 1)">›</button>
+            </div>
+            <div class="qc-hstack" style="gap:12px;flex-wrap:nowrap">
+                <span class="qc-line" x-text="info()"></span>
+                <div class="qc-select-wrap" style="width:140px">
+                    <select class="qc-field-base qc-field-sm qc-select qc-focusable" x-model.number="per" @change="page=1"><option value="10">{{ '10 per page'|trans }}</option><option value="25">{{ '25 per page'|trans }}</option><option value="50">{{ '50 per page'|trans }}</option></select>
+                    {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                </div>
+            </div>
+        </div>
+    </div>
+    </template>
+
+    {# Raporty rynkowe Market Insights — poza prototypem (PLAN §4 M), w tym samym ukladzie list. #}
+    <template x-if="data && !data.unavailable">
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Price competitiveness'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Your price compared with the average price other shops charge for the same product.'|trans }}</div>
+            </div>
+            <template x-if="data.price.available && data.price.rows.length">
+                <div>
+                    <div class="qc-grid-head" style="grid-template-columns:1fr 100px 100px 70px;padding:10px 18px"><div>{{ 'Product'|trans }}</div><div>{{ 'Your price'|trans }}</div><div>{{ 'Benchmark'|trans }}</div><div></div></div>
+                    <template x-for="r in data.price.rows.slice(0, 10)" :key="r.offer">
+                        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 100px 100px 70px">
+                            <span class="qc-set-title" x-text="r.name || r.offer"></span>
+                            <span class="qc-line" x-text="r.price[0].toFixed(2) + ' ' + r.price[1]"></span>
+                            <span class="qc-line" x-text="r.benchmark[0].toFixed(2) + ' ' + r.benchmark[1]"></span>
+                            <span><span class="qc-badge" :class="r.diff > 0 ? 'qc-badge-danger' : 'qc-badge-success'" x-show="r.diff !== null" x-text="(r.diff > 0 ? '+' : '') + r.diff + '%'"></span></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="!data.price.available">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><div class="qc-line">{{ 'Not available for this account. Google shows market reports only to accounts that meet the Market Insights requirements and accepted their terms in Merchant Center.'|trans }}</div></div>
+            </template>
+            <template x-if="data.price.available && !data.price.rows.length">
+                <div class="qc-empty"><div class="qc-empty-text">{{ 'Google has no price comparison for your products yet.'|trans }}</div></div>
+            </template>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ mt.marketCountryName ? 'Best sellers in %country%'|trans({'%country%': mt.marketCountryName}) : 'Best sellers'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'The most popular products on Google this week and whether your shop has them.'|trans }}</div>
+            </div>
+            <template x-if="data.bestSellers.available && data.bestSellers.rows.length">
+                <div>
+                    <div class="qc-grid-head" style="grid-template-columns:50px 1fr 110px;padding:10px 18px"><div>#</div><div>{{ 'Product'|trans }}</div><div>{{ 'In your shop'|trans }}</div></div>
+                    <template x-for="r in data.bestSellers.rows" :key="r.rank + r.name">
+                        <div class="qc-grid-row qi-row" style="grid-template-columns:50px 1fr 110px">
+                            <span class="qc-line" x-text="r.rank"></span>
+                            <div style="min-width:0"><span class="qc-set-title" x-text="r.name"></span><div class="qc-sub" x-show="r.brand" x-text="r.brand"></div></div>
+                            <span><span class="qc-badge" :class="r.inventory==='IN_STOCK' ? 'qc-badge-success' : ''" x-text="r.inventory==='IN_STOCK' ? {{ 'In stock'|trans|json_encode }} : (r.inventory==='OUT_OF_STOCK' ? {{ 'Out of stock'|trans|json_encode }} : {{ 'Not in shop'|trans|json_encode }})"></span></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
+            <template x-if="!data.bestSellers.available">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><div class="qc-line">{{ 'Not available for this account. Google shows market reports only to accounts that meet the Market Insights requirements and accepted their terms in Merchant Center.'|trans }}</div></div>
+            </template>
+            <template x-if="data.bestSellers.available && !data.bestSellers.rows.length">
+                <div class="qc-empty"><div class="qc-empty-text">{{ 'Google has no best-seller list for this country yet.'|trans }}</div></div>
+            </template>
+        </div>
+    </div>
+    </template>
+</div>
+{% endif %}

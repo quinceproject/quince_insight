@@ -1,0 +1,103 @@
+{#
+  Events -> Missing orders — 1:1 z prototypu (automat w cronie Orders + kolumna „In GA4 as”).
+  Zamowienia bez zapisanego identyfikatora GA albo bez zgody nie daja sie zaznaczyc —
+  modul nie wymysla identyfikatora (SPEC §5.3).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% set cols = 'grid-template-columns:110px 1fr 100px 1fr 140px auto' %}
+<div class="qc-cols" x-data="qiEvents.missing({{ {auto: autoMissing, hours: autoHours}|json_encode }})">
+    <div class="qc-grid">
+        <div class="qi-head qc-set-row" style="align-items:center">
+            <div>
+                <div class="qc-set-title">{{ 'Orders missing in GA4'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'From the last 72 hours — GA4 does not accept older purchases. Within 24 hours a purchase still counts for its traffic source; later it only adds to revenue.'|trans }}</div>
+            </div>
+            <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="run()" :disabled="scan==='running'"><span class="qc-spinner" x-show="scan==='running'" x-cloak></span> {{ 'Find orders'|trans }}</button>
+        </div>
+        <template x-if="scan==='idle' || scan==='running'">
+            <div class="qc-empty"><div class="qc-empty-text">{{ 'Click Find orders to compare shop orders with what GA4 received.'|trans }}</div></div>
+        </template>
+        <template x-if="scan==='done' && !orders.length">
+            <div class="qc-empty"><div class="qc-empty-text">{{ 'Every order from the last 72 hours reached GA4.'|trans }}</div></div>
+        </template>
+        <template x-if="scan==='done' && orders.length">
+        <div>
+            <div class="qc-grid-head" style="{{ cols }};padding:10px 18px"><div>{{ 'Order'|trans }}</div><div>{{ 'Date'|trans }}</div><div>{{ 'Total'|trans }}</div><div>{{ 'Reason'|trans }}</div><div>{{ 'In GA4 as'|trans }}</div><div></div></div>
+            <template x-for="o in orders" :key="o.id">
+                <label class="qc-grid-row qi-row" style="{{ cols }};cursor:pointer">
+                    <span class="qc-mono" style="font-size:var(--text-xs)" x-text="o.ref"></span>
+                    <span class="qc-line" x-text="o.date"></span>
+                    <span style="font-size:var(--text-sm)" x-text="o.total"></span>
+                    <span>
+                        <span class="qc-line" x-text="o.done ? {{ 'Sent after the scan'|trans|json_encode }} : o.reason"></span>
+                        <span class="qc-line" style="display:block;margin-top:4px;color:var(--fg-3)" x-show="!o.done && o.blocked" x-text="o.blocked"></span>
+                    </span>
+                    <span><span class="qc-badge" :class="{'qc-badge-success': o.withSource}" x-text="o.withSource ? {{ 'With traffic source'|trans|json_encode }} : {{ 'Revenue only'|trans|json_encode }}"></span></span>
+                    <span class="qc-toggle"><input type="checkbox" x-model="pick[o.id]" :disabled="!o.sendable"><span class="qc-toggle-track"></span></span>
+                </label>
+            </template>
+        </div>
+        </template>
+    </div>
+
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer;border-top:0">
+                <div>
+                    <div class="qc-set-title">{{ 'Send missing orders automatically'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'The Orders cron sends them on its own, early enough for the purchase to keep its traffic source. Only orders with a saved GA session and consent.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="auto" @change="qiEvents.save('autoMissing', auto)"><span class="qc-toggle-track"></span></span>
+            </label>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto" :class="{'qc-disabled-area is-off': !auto}">
+                <div>
+                    <div class="qc-set-title">{{ 'Wait before sending'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Gives the customer time to come back from the payment page.'|trans }}</div>
+                </div>
+                <div class="qc-hstack" style="gap:10px;flex-wrap:nowrap">
+                    <input type="number" class="qc-field-base qc-focusable" style="width:72px" min="1" max="23" x-model.number="hours" @change="qiEvents.save('autoMissingHours', hours)">
+                    <span class="qc-line" style="margin:0">{{ 'hours'|trans }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="qc-grid" :class="{'qc-disabled-area is-off': scan!=='done'}">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Send selected'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Each order goes with its real date, its traffic source from the shop (gclid, utm, referrer) and hashed customer data when consent allows.'|trans }}</div>
+            </div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div>
+                    <div class="qc-set-title">{{ 'Test run'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Checks every order with Google\'s validation endpoint, sends nothing.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="dry"><span class="qc-toggle-track"></span></span>
+            </label>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                <span class="qc-line" x-text="{{ '%count% orders selected'|trans|json_encode }}.replace('%count%', picked())"></span>
+                <button type="button" class="qc-btn qc-btn-sm qc-btn-primary" @click="send()" :disabled="!picked() || state==='running'{{ canSend ? '' : ' || true' }}">
+                    <span class="qc-spinner" x-show="state==='running'" x-cloak></span>
+                    <span x-text="dry ? {{ 'Run test'|trans|json_encode }} : {{ 'Send to GA4'|trans|json_encode }}"></span>
+                </button>
+            </div>
+            {# Powod wylaczonego "Send to GA4" (poza oczywistym "0 orders selected"). #}
+            {% if not canSend %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="scan==='done'" x-cloak>
+                    <div class="qc-line">{{ 'The Measurement Protocol secret is missing. Create it in Analytics → Property.'|trans }}</div>
+                </div>
+            {% else %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="scan==='done' && orders.length && !orders.some(o => o.sendable || o.done)" x-cloak>
+                    <div class="qc-line">{{ 'None of these orders can be sent — the reason is next to each order.'|trans }}</div>
+                </div>
+            {% endif %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="state==='done'" x-cloak>
+                <div class="qc-alert" :class="dry ? 'qc-alert-info' : 'qc-alert-success'">
+                    <span x-show="dry">{{ icons.icon('info', 18, 'qc-alert-icon') }}</span>
+                    <span x-show="!dry">{{ icons.icon('checkCircle', 18, 'qc-alert-icon') }}</span>
+                    <div x-text="dry ? {{ 'Test passed for every selected order. Switch off Test run to send them.'|trans|json_encode }} : {{ 'Sent. Each order is marked in the Order log, so it is never sent twice.'|trans|json_encode }}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

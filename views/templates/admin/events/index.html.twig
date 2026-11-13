@@ -1,0 +1,42 @@
+{#
+  Ekran Events — 1:1 z prototypu (`pg==='tracking'`). Zakladki ?tab= (serwer renderuje tylko
+  wybrana), kazda w `events/tabs/<klucz>.html.twig`. Ustawienia zapisuja sie od razu po zmianie
+  (prototyp nie ma przycisku Save) — `views/js/admin/events.js`.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_scripts %}
+    <script src="{{ asset('../modules/quince_insight/views/js/admin/events.js') ~ '?v=' ~ (app.debug ? 'now'|date('U') : qcVersion|default('0.1.0')) }}"></script>
+    {# Adresy w atrybucie data-* (autoescape HTML) — bez `|raw` w tresci skryptu (R-17, ARCHITEKTURA §11). #}
+    <script data-qi-config="{{ {
+            save: path('quince_insight_events_save'),
+            eventToggle: path('quince_insight_events_event_toggle'),
+            keyToggle: path('quince_insight_events_key_toggle'),
+            testServer: path('quince_insight_events_test_server'),
+            orderResend: path('quince_insight_events_order_resend'),
+            orderPayload: path('quince_insight_events_order_payload'),
+            missingScan: path('quince_insight_events_missing_scan'),
+            missingSend: path('quince_insight_events_missing_send')
+        }|json_encode }}">
+        window.qiEvents.init(JSON.parse(document.currentScript.getAttribute('data-qi-config')));
+    </script>
+{% endblock %}
+
+{% block quince_body %}
+{% set tpl = '@Modules/quince_insight/views/templates/admin/events/tabs/' %}
+<div class="qc-screen">
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/head.html.twig' with {
+        title: 'Events',
+        description: 'What the shop sends to Analytics and Google Ads, when, and whether it arrived.',
+        margin: 20
+    } only %}
+
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/tabs.html.twig' with {
+        tabs: tabs, route: 'quince_insight_events'
+    } only %}
+
+    {% include tpl ~ tab ~ '.html.twig' %}
+</div>
+{% endblock %}

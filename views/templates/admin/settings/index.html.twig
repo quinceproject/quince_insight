@@ -1,0 +1,231 @@
+{#
+  Settings — 1:1 z prototypu `pg==='settings'`.
+  Dodatki z paczki A (w duchu Quince): stany polaczenia "Sign in again" / "Not connected",
+  wybor polaczenia przy sklepie, gdy polaczen jest kilka, karta retencji dziennika.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/fields.html.twig' as fields %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% set qiAssetsSet = '../modules/quince_insight/views/' %}
+{% set qcVerSet = '?v=' ~ (app.debug ? 'now'|date('U') : qcVersion|default('0.1.0')) %}
+
+{% block quince_scripts %}
+    <script src="{{ asset(qiAssetsSet ~ 'js/admin/cron.js') ~ qcVerSet }}" defer></script>
+{% endblock %}
+
+{% block quince_body %}
+<div class="qc-screen qc-settings" x-data="{
+        toggleUrl: {{ path('quince_insight_settings_service_toggle')|json_encode }},
+        disconnectUrl: {{ path('quince_insight_connect_disconnect')|json_encode }},
+        shopsUrl: {{ path('quince_insight_settings_shops_save')|json_encode }},
+        connect(key) { QI.post(this.toggleUrl, {key: key, on: true}).then(r => { if (r.ok && r.redirect) { window.location.href = r.redirect; } }); },
+        disconnectAsk: 0,
+        disconnect(id) { this.busy = true; QI.post(this.disconnectUrl, {id: id}).then(r => { this.busy = false; if (r.ok) { QI.toast(r.message, 'success'); this.disconnectAsk = 0; setTimeout(() => window.location.reload(), 1200); } }); },
+        assign(shop, connection) { QI.post(this.shopsUrl, {shop: shop, connection: connection}).then(r => { if (r.ok) { QI.toast(r.message, 'success'); } }); },
+        offKey: '', busy: false,
+        turnOff(key) { this.busy = true; QI.post(this.toggleUrl, {key: key, on: false}).then(r => { this.busy = false; if (r.ok) { window.location.reload(); } }); },
+        removeUrl: {{ path('quince_insight_verify_remove')|json_encode }},
+        removeAsk: false,
+        removeVerification() { this.busy = true; QI.post(this.removeUrl, {}).then(r => { this.busy = false; if (r.ok) { QI.toast(r.message, 'success'); this.removeAsk = false; setTimeout(() => window.location.reload(), 1200); } }); }
+    }">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Settings'|trans }}</div>
+            <div class="qc-head-desc">
+                {% if allShopsView %}
+                    {{ 'All shops. Choose a shop to see its services and scheduled tasks.'|trans }}
+                {% else %}
+                    {{ 'These settings belong to %shop%.'|trans({'%shop%': multistore ? shopLine : shopHost}) }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="qc-settings-list">
+
+        {# ---------- Google connection ---------- #}
+        {% for c in connections %}
+        <div class="qc-grid" style="padding:16px 18px">
+            <div class="qc-set-title" style="margin-bottom:8px">{{ 'Google connection'|trans }}</div>
+            <div class="qc-hstack" style="gap:8px">
+                <span class="qc-dot{{ c.connected ? ' is-on' }}"{% if c.needsReauth %} style="background:var(--warning)"{% endif %}></span>
+                <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">
+                    {% if c.connected %}
+                        {{ 'Connected as'|trans }} <span class="qc-mono">{{ c.email }}</span>
+                    {% elseif c.needsReauth %}
+                        {{ 'Google needs you to sign in again'|trans }}{% if c.email %} · <span class="qc-mono">{{ c.email }}</span>{% endif %}
+                    {% else %}
+                        {{ 'Not connected'|trans }}
+                    {% endif %}
+                </span>
+            </div>
+            {% set cid = c.clientId %}
+            {% set cidShort = '-' in cid ? (cid|split('-')|first) ~ '-….apps.googleusercontent.com' : cid %}
+            <div class="qc-line" style="margin-top:8px">{{ 'OAuth client'|trans }} <span class="qc-mono">{{ cidShort }}</span>{% if allShopsView and c.shops %} · {{ 'used by %shops%'|trans({'%shops%': c.shops}) }}{% endif %}</div>
+            <div class="qc-hstack" style="justify-content:space-between;gap:16px;padding-top:12px;margin-top:12px;border-top:1px solid var(--border)"{% if c.connected %} x-show="disconnectAsk !== {{ c.id }}"{% endif %}>
+                {% if c.connected %}
+                    <div class="qc-line" style="margin:0">{{ "Disconnecting revokes the module's access at Google. Settings are kept."|trans }}</div>
+                    <button type="button" class="qc-linkbtn" @click="disconnectAsk = {{ c.id }}">{{ 'Disconnect'|trans }}</button>
+                {% elseif c.hasCredentials and not allShopsView %}
+                    <div class="qc-line" style="margin:0">{{ 'Nothing is sent to Google until you sign in.'|trans }}</div>
+                    <form method="post" action="{{ path('quince_insight_connect_start') }}" style="margin:0">
+                        {{ fields.csrf('quince_insight_connect_start') }}
+                        <input type="hidden" name="return" value="settings">
+                        <button type="submit" class="qc-linkbtn">{{ c.needsReauth ? 'Sign in again'|trans : 'Sign in with Google'|trans }}</button>
+                    </form>
+                {% else %}
+                    <div class="qc-line" style="margin:0">{{ 'Nothing is sent to Google until you sign in.'|trans }}</div>
+                {% endif %}
+            </div>
+            {# ---------- "Disconnect": krok potwierdzenia jak przy "Remove" (bez natywnego confirm) ---------- #}
+            {% if c.disconnect %}
+                <div class="qc-settings-list" style="gap:12px;padding-top:12px;margin-top:12px;border-top:1px solid var(--border)" x-show="disconnectAsk === {{ c.id }}" x-cloak>
+                    <div class="qc-alert qc-alert-warning">
+                        {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                        <div><strong>{{ c.disconnect.title }}</strong>{% for line in c.disconnect.lines %} {{ line }}{% endfor %}</div>
+                    </div>
+                    <div class="qc-hstack" style="gap:8px">
+                        <button type="button" class="qc-btn qc-btn-primary" :disabled="busy" @click="disconnect({{ c.id }})">{{ 'Disconnect'|trans }}</button>
+                        <button type="button" class="qc-btn qc-btn-text" @click="disconnectAsk = 0">{{ 'Cancel'|trans }}</button>
+                    </div>
+                </div>
+            {% endif %}
+            {# ---------- weryfikacja witryny: "Remove" z krokiem potwierdzenia (decyzja #25) ---------- #}
+            {% if verification and not allShopsView %}
+                <div class="qc-hstack" style="justify-content:space-between;gap:16px;padding-top:12px;margin-top:12px;border-top:1px solid var(--border)" x-show="!removeAsk">
+                    <div class="qc-line" style="margin:0">{{ 'Site verification'|trans }} <span class="qc-mono">{{ verification.site }}</span> · {{ verification.meta ? 'verified with the tag added by this module'|trans : 'verified another way'|trans }}</div>
+                    <button type="button" class="qc-linkbtn" @click="removeAsk = true">{{ 'Remove'|trans }}</button>
+                </div>
+                <div class="qc-settings-list" style="gap:12px;padding-top:12px;margin-top:12px;border-top:1px solid var(--border)" x-show="removeAsk" x-cloak>
+                    <div class="qc-alert qc-alert-warning">
+                        {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                        <div><strong>{{ verification.title }}</strong>{% for line in verification.lines %} {{ line }}{% endfor %}</div>
+                    </div>
+                    <div class="qc-hstack" style="gap:8px">
+                        <button type="button" class="qc-btn qc-btn-primary" :disabled="busy" @click="removeVerification()">{{ 'Remove verification'|trans }}</button>
+                        <button type="button" class="qc-btn qc-btn-text" @click="removeAsk = false">{{ 'Cancel'|trans }}</button>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="qc-grid" style="padding:16px 18px">
+            <div class="qc-set-title" style="margin-bottom:8px">{{ 'Google connection'|trans }}</div>
+            <div class="qc-hstack" style="gap:8px">
+                <span class="qc-dot"></span>
+                <span style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ 'Not connected'|trans }}</span>
+            </div>
+            <div class="qc-line" style="margin-top:8px">{{ 'Set up the Google Cloud project and sign in with Google in the setup wizard.'|trans }}</div>
+        </div>
+        {% endfor %}
+
+        {# ---------- Shops (multistore) ---------- #}
+        {% if multistore %}
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Shops'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Each shop is set up separately and keeps its own settings. A shop that is not set up gets nothing from the module.'|trans }}</div>
+            </div>
+            {% for s in shopRows %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto">
+                    <span class="qc-dot{{ s.done ? ' is-on' }}"></span>
+                    <div>
+                        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ s.name }}</div>
+                        <div class="qc-mono" style="font-size:var(--text-xs);color:var(--fg-2);margin-top:4px">{{ s.url }}</div>
+                        {% if s.done and s.editable and connectionChoices|length > 1 %}
+                            <div class="qc-hstack" style="gap:8px;margin-top:6px;flex-wrap:nowrap">
+                                <span class="qc-line" style="margin:0">{{ 'Connection:'|trans }}</span>
+                                <div class="qc-select-wrap" style="min-width:200px">
+                                    <select class="qc-field-base qc-select qc-focusable" @change="assign({{ s.id }}, $event.target.value)">
+                                        {% for id, label in connectionChoices %}<option value="{{ id }}"{{ id == s.idConnection ? ' selected' }}>{{ label }}</option>{% endfor %}
+                                    </select>
+                                    {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                                </div>
+                            </div>
+                        {% else %}
+                            <div class="qc-line" style="margin-top:4px">{{ s.done ? 'Connection: %email%'|trans({'%email%': s.connection ?: '-'}) : 'Not set up'|trans }}</div>
+                        {% endif %}
+                    </div>
+                    {% if s.done %}
+                        <a class="qc-btn qc-btn-sm qc-btn-text" href="{{ path('quince_insight_overview', {'setShopContext': 's-' ~ s.id}) }}">{{ 'Open'|trans }}</a>
+                    {% else %}
+                        <a class="qc-btn qc-btn-sm qc-btn-outline" href="{{ path('quince_insight_wizard', {'setShopContext': 's-' ~ s.id}) }}">{{ 'Set up'|trans }}</a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not allShopsView %}
+        {# ---------- Services ---------- #}
+        <div class="qc-grid">
+            <div style="padding:12px 16px">
+                <div style="font-size:var(--text-sm);font-weight:var(--weight-bold)">{{ 'Services'|trans }}</div>
+            </div>
+            {% for s in servicesList %}
+                <div class="qc-grid-row" style="grid-template-columns:auto 1fr auto">
+                    <span class="qc-dot{{ s.on ? ' is-on' }}"></span>
+                    <div>
+                        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ s.name|trans }}</div>
+                        <div class="qc-line">{{ s.on ? 'Connected'|trans : 'Not connected'|trans }}</div>
+                    </div>
+                    {% if s.on %}
+                        <span class="qc-hstack" style="gap:16px">
+                            <a class="qc-linkbtn" href="{{ path('quince_insight_wizard', {'step': s.step}) }}">{{ 'Change'|trans }}</a>
+                            <button type="button" class="qc-linkbtn" @click="offKey = {{ s.key|json_encode }}" x-show="offKey !== {{ s.key|json_encode }}">{{ 'Turn off'|trans }}</button>
+                        </span>
+                    {% else %}
+                        <button type="button" class="qc-linkbtn" @click="connect({{ s.key|json_encode }})">{{ 'Connect'|trans }}</button>
+                    {% endif %}
+                </div>
+                {# ---------- "Turn off": krok potwierdzenia (decyzja #24, wzor prototypu "Start sending") ---------- #}
+                {% if s.on and s.off %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="offKey === {{ s.key|json_encode }}" x-cloak>
+                        <div class="qc-settings-list" style="gap:12px">
+                            <div class="qc-alert qc-alert-warning">
+                                {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                                <div><strong>{{ s.off.title }}</strong>{% for line in s.off.lines %} {{ line }}{% endfor %}</div>
+                            </div>
+                            <div class="qc-hstack" style="gap:8px">
+                                <button type="button" class="qc-btn qc-btn-primary" :disabled="busy" @click="turnOff({{ s.key|json_encode }})">{{ s.off.button }}</button>
+                                <button type="button" class="qc-btn qc-btn-text" @click="offKey = ''">{{ 'Cancel'|trans }}</button>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        {# ---------- Scheduled tasks (cron) ---------- #}
+        {% include '@Modules/quince_insight/views/templates/admin/wizard/_cron.html.twig' with {
+            cron: cron, full: true, shopName: shopName, multistore: multistore
+        } only %}
+
+        {# ---------- Logs (retencja) ---------- #}
+        <form class="qc-grid qc-set-row" style="padding:16px 18px;margin:0" method="post" action="{{ path('quince_insight_settings_save') }}">
+            {{ fields.csrf('quince_insight_settings_save') }}
+            <div>
+                <div class="qc-set-title">{{ 'Module log'|trans }}</div>
+                <div class="qc-line" style="margin:4px 0 0;max-width:480px">{{ 'Google calls and errors are kept for this many days, then deleted by the Maintenance cron.'|trans }}</div>
+            </div>
+            <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                <input type="number" name="log_keep_days" min="1" max="365" value="{{ logDays }}" class="qc-field-base qc-focusable" style="width:90px" aria-label="{{ 'Days'|trans }}">
+                <button type="submit" class="qc-btn qc-btn-sm qc-btn-outline">{{ 'Save'|trans }}</button>
+            </div>
+        </form>
+
+        {# ---------- Setup wizard ---------- #}
+        <form class="qc-grid qc-set-row" style="padding:16px 18px;margin:0" method="post" action="{{ path('quince_insight_wizard_restart') }}">
+            {{ fields.csrf('quince_insight_wizard_restart') }}
+            <div>
+                <div class="qc-set-title">{{ 'Setup wizard'|trans }}</div>
+                <div class="qc-line" style="margin:4px 0 0;max-width:480px">{{ 'Go through all steps again. Current settings are kept and shown as the starting point.'|trans }}</div>
+            </div>
+            <button type="submit" class="qc-btn qc-btn-sm qc-btn-outline">{{ 'Run again'|trans }}</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

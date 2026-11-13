@@ -1,0 +1,154 @@
+{#
+  Krok Google Cloud project — 1:1 z prototypu `cur==='cloud'`: po lewej dane projektu,
+  po prawej podkroki instrukcji jako karty zwijane (jedna otwarta, "Done — next").
+  Kolejny sklep: wybor istniejacego polaczenia albo innego projektu Cloud.
+
+  Zapisane sekrety nie wracaja do HTML: pole jest puste, podpowiedz mowi "saved".
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set c = cloudStep %}
+<div x-data="QIWizardCloud({{ {
+        steps: c.steps|map(s => s.n),
+        conn: c.existing ? c.choice : 'new',
+        clientId: c.clientId,
+        production: c.production,
+        psi: c.psi,
+        checkUrl: path('quince_insight_cloud_check'),
+        okText: 'Looks right.'|trans
+    }|json_encode }})">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Google Cloud project'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Quince Insight talks to Google through your own Google Cloud project. It is free and you set it up once.'|trans }}</div>
+        </div>
+    </div>
+
+    {% if c.existing %}
+    <div class="qc-grid" style="margin-bottom:18px">
+        <div class="qi-head">
+            <div class="qc-set-title">{{ 'Connection for %name%'|trans({'%name%': c.addingName}) }}</div>
+        </div>
+        {% for e in c.existing %}
+        <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;cursor:pointer">
+            <input type="radio" class="qc-radio" name="conn" value="{{ e.id }}" x-model="conn">
+            <div>
+                <div class="qc-set-title">{{ 'Use the existing connection'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Signed in as'|trans }} <span class="qc-mono">{{ e.email ?: e.label }}</span> · {{ 'used by %shops%. Nothing to set up in Google Cloud.'|trans({'%shops%': e.shops}) }}</div>
+            </div>
+            {% if loop.first %}<span class="qc-badge qc-badge-accent">{{ 'Recommended'|trans }}</span>{% else %}<span></span>{% endif %}
+        </label>
+        {% endfor %}
+        <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer">
+            <input type="radio" class="qc-radio" name="conn" value="new" x-model="conn">
+            <div>
+                <div class="qc-set-title">{{ 'Connect another Google Cloud project'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'For a shop that belongs to a different Google account or company. You go through the project setup and the sign-in again, for this shop only.'|trans }}</div>
+            </div>
+        </label>
+    </div>
+    {% endif %}
+
+    <div class="qc-cols" x-show="conn==='new'"{% if c.existing and c.choice != 'new' %} x-cloak{% endif %}>
+        <div class="qc-grid" style="position:sticky;top:calc(var(--qc-top-offset) + 20px)">
+            <div class="qi-head qc-set-row">
+                <div class="qc-set-title">{{ 'Credentials'|trans }}</div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div>
+                    <label class="qc-label" for="qi-client-id">{{ 'Client ID'|trans }}</label>
+                    <input type="text" id="qi-client-id" name="client_id" class="qc-field-base qc-focusable qc-mono" x-model="clientId" @input="state='idle'" placeholder="….apps.googleusercontent.com" autocomplete="off">
+                    {% if errors.client_id is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errors.client_id }}</div>{% endif %}
+                </div>
+                <div>
+                    <label class="qc-label" for="qi-client-secret">{{ 'Client secret'|trans }}</label>
+                    <input type="password" id="qi-client-secret" name="client_secret" class="qc-field-base qc-focusable qc-mono" x-model="secret" @input="state='idle'" autocomplete="new-password"{% if c.hasSecret %} placeholder="{{ 'Saved — leave empty to keep it'|trans }}"{% endif %}>
+                    <div class="qc-hint">{{ 'Stored encrypted.'|trans }}</div>
+                    {% if errors.client_secret is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errors.client_secret }}</div>{% endif %}
+                </div>
+                {% if c.psi %}
+                <div>
+                    <label class="qc-label" for="qi-api-key">{{ 'API key'|trans }}</label>
+                    <input type="password" id="qi-api-key" name="api_key" class="qc-field-base qc-focusable qc-mono" x-model="apiKey" @input="state='idle'" autocomplete="new-password"{% if c.hasApiKey %} placeholder="{{ 'Saved — leave empty to keep it'|trans }}"{% endif %}>
+                    <div class="qc-hint">{{ 'For Page speed only.'|trans }}</div>
+                    {% if errors.api_key is defined %}<div class="qc-hint" style="color:var(--danger)">{{ errors.api_key }}</div>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div>
+                    <div class="qc-set-title">{{ 'My consent screen is In production'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Not Testing — see step 3 on the right.'|trans }}</div>
+                </div>
+                <span class="qc-toggle">
+                    <input type="hidden" name="production" value="0">
+                    <input type="checkbox" name="production" value="1" x-model="production">
+                    <span class="qc-toggle-track"></span>
+                </span>
+            </label>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                <div class="qc-line">
+                    <span x-show="state==='idle'">{{ 'Google confirms the values when you sign in.'|trans }}</span>
+                    <span x-show="state==='checking'" x-cloak>{{ 'Checking…'|trans }}</span>
+                    <span x-show="state==='ok'" x-cloak style="color:var(--success);font-weight:var(--weight-semibold)">{{ 'Looks right.'|trans }}</span>
+                    <span x-show="state==='error'" x-cloak style="color:var(--danger)" x-text="error"></span>
+                </div>
+                <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="check()" :disabled="state==='checking'">
+                    <span class="qc-spinner" x-show="state==='checking'" x-cloak></span> {{ 'Check'|trans }}
+                </button>
+            </div>
+        </div>
+
+        <div class="qc-settings-list">
+            {% for s in c.steps %}
+            <div class="qc-grid" style="overflow:visible">
+                <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggle({{ s.n }})" :aria-expanded="open==={{ s.n }}">
+                    <span class="qc-hstack" style="gap:10px;flex-wrap:nowrap">
+                        <span class="qc-step" :class="{'qc-done': done[{{ s.n }}], 'qc-current': open==={{ s.n }}}">
+                            <span class="qc-step-num" x-html="done[{{ s.n }}] ? QI.icon('check', 11) : '{{ s.n }}'">{{ s.n }}</span>
+                        </span>
+                        <span>{{ s.title|trans }}</span>
+                    </span>
+                    {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+                </button>
+                <div x-show="open==={{ s.n }}"{% if not loop.first %} x-cloak{% endif %} style="padding:16px 18px">
+                    {% if s.n == 1 %}
+                        <div class="qc-line">{{ 'Any name works, for example the shop domain. The project costs nothing — the APIs used here are free.'|trans }}</div>
+                    {% elseif s.n == 2 %}
+                        <div>
+                            <div class="qc-line">{{ 'Search for each one in the API Library and click <strong>Enable</strong>. The list follows the services you picked.'|trans|raw }}</div>
+                            <div class="qc-hstack" style="gap:6px;margin-top:12px">
+                                {% for a in c.apis %}<span class="qc-badge">{{ a }}</span>{% endfor %}
+                            </div>
+                        </div>
+                    {% elseif s.n == 3 %}
+                        <div>
+                            <div class="qc-line">{{ 'User type <strong>External</strong>. When it is saved, set the publishing status to <strong>In production</strong>.'|trans|raw }}</div>
+                            <div class="qc-alert qc-alert-warning" style="margin-top:12px">
+                                {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                                <div>{{ 'In <strong>Testing</strong>, Google ends the connection after 7 days and the module stops working without warning.'|trans|raw }}</div>
+                            </div>
+                        </div>
+                    {% elseif s.n == 4 %}
+                        <div>
+                            <div class="qc-line">{{ 'Application type <strong>Web application</strong>. Add this address under <strong>Authorized redirect URIs</strong>:'|trans|raw }}</div>
+                            <div class="qc-hstack" style="gap:8px;margin-top:12px;flex-wrap:nowrap">
+                                <pre class="qc-pre qc-mono" style="flex:1;min-width:0">{{ c.redirectUri }}</pre>
+                                <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="QI.copy({{ c.redirectUri|json_encode }})">{{ 'Copy'|trans }}</button>
+                            </div>
+                            <div class="qc-hint">{{ 'Google then shows the Client ID and Client secret — paste them on the left.'|trans }}</div>
+                            <div class="qc-hint">{{ 'Copy the Client secret right away: Google shows it in full only once. A client that is not used for six months is deleted by Google.'|trans }}</div>
+                        </div>
+                    {% elseif s.n == 5 %}
+                        <div class="qc-line">{{ 'Used only by Page speed. Restrict the key to PageSpeed Insights API and Chrome UX Report API, then paste it on the left.'|trans }}</div>
+                    {% endif %}
+                    <div class="qc-hstack" style="justify-content:space-between;gap:16px;padding-top:14px;margin-top:16px;border-top:1px solid var(--border)">
+                        <a class="qc-btn qc-btn-sm qc-btn-outline" href="{{ s.url }}" target="_blank" rel="noopener">{{ 'Open in Google Cloud'|trans }}</a>
+                        <button type="button" class="qc-linkbtn" @click="markDone({{ s.n }})">{{ loop.last ? 'Done'|trans : 'Done — next'|trans }}</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

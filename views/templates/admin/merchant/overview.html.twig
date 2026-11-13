@@ -1,0 +1,200 @@
+{# Zakladka Overview — 1:1 z prototypu (gm.tab==='overview'): wersja robocza i feed aktywny / wstrzymany. #}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set o = overview %}
+{% set c = o.counts %}
+{% set qiNumber = 'font-size:var(--text-base);font-weight:var(--weight-bold)' %}
+<div class="qc-settings-list" x-data="QIMerchant.overview({{ {
+        feed: feed.id,
+        status: feed.status,
+        onlyReady: feed.onlyReady,
+        toSend: o.toSend,
+        ready: c.ready,
+        matched: c.matched,
+        statusUrl: path('quince_insight_merchant_feed_status'),
+        syncUrl: path('quince_insight_merchant_sync'),
+        tickUrl: path('quince_insight_job_tick'),
+        job: o.job
+     }|json_encode }})">
+
+    {% if feed.draft %}
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <div class="qi-head qc-set-row">
+                <div>
+                    <div class="qc-hstack" style="gap:8px">
+                        <span class="qc-badge qc-badge-warning">{{ 'Draft'|trans }}</span>
+                        <span class="qc-set-title">{{ 'Nothing is sent to Google yet'|trans }}</span>
+                    </div>
+                    <div class="qc-line" style="margin-top:6px">{{ 'Check these before you start sending. You can change all of them later as well.'|trans }}</div>
+                </div>
+            </div>
+            <a href="{{ path('quince_insight_merchant', {'feed': feed.id, 'tab': 'sent'}) }}" class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto">
+                <span class="qc-step"><span class="qc-step-num">1</span></span>
+                <div>
+                    <div class="qc-set-title">{{ 'Choose which products go to Google'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ '%count% of %total% products match'|trans({'%count%': o.matching|number_format(0, '', ' '), '%total%': o.total|number_format(0, '', ' ')}) }} · {% if o.filters %}{% for f in o.filters %}{{ f[0]|trans(f[1]) }}{{ not loop.last ? ', ' }}{% endfor %}{% else %}{{ 'no filters'|trans }}{% endif %}</div>
+                </div>
+                <span style="color:var(--fg-3)">{{ icons.icon('chevronRight', 14) }}</span>
+            </a>
+            <a href="{{ path('quince_insight_merchant', {'feed': feed.id, 'tab': 'mapping'}) }}" class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto">
+                <span class="qc-step"><span class="qc-step-num">2</span></span>
+                <div>
+                    <div class="qc-set-title">{{ 'Check mapping'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{% if o.mapping.gtin %}{{ 'GTIN from %source%'|trans({'%source%': o.mapping.gtin}) }}{% else %}{{ 'GTIN not sent'|trans }}{% endif %} · {{ '%count% attributes'|trans({'%count%': o.mapping.attributes}) }} · {{ '%mapped% of %total% categories mapped'|trans({'%mapped%': o.mapping.mapped, '%total%': o.mapping.categories}) }}</div>
+                </div>
+                <span style="color:var(--fg-3)">{{ icons.icon('chevronRight', 14) }}</span>
+            </a>
+            <a href="{{ path('quince_insight_merchant', {'feed': feed.id, 'tab': 'products', 'status': 'issue'}) }}" class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto">
+                <span class="qc-step"><span class="qc-step-num">3</span></span>
+                <div>
+                    <div class="qc-set-title">{{ 'Review products with issues'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{% if o.issues %}{{ '%count% products would be rejected or limited by Google — most often: %issue%'|trans({'%count%': c.flagged, '%issue%': o.issues[0].message|trans}) }}{% else %}{{ '%count% products would be rejected or limited by Google'|trans({'%count%': c.flagged}) }}{% endif %}</div>
+                </div>
+                <span style="color:var(--fg-3)">{{ icons.icon('chevronRight', 14) }}</span>
+            </a>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Start sending'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Products checked by the module before anything goes to Google.'|trans }}</div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:repeat(3,1fr)">
+                <div><span class="qc-caption">{{ 'Match the filters'|trans }}</span><div style="{{ qiNumber }}">{{ c.matched }}</div></div>
+                <div><span class="qc-caption">{{ 'Ready'|trans }}</span><div style="{{ qiNumber }};color:var(--success)">{{ c.ready }}</div></div>
+                <div><span class="qc-caption">{{ 'With issues'|trans }}</span><div style="{{ qiNumber }};color:var(--warning)">{{ c.issues }}</div></div>
+            </div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div>
+                    <div class="qc-set-title">{{ 'Send only ready products'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Products with issues wait until they are fixed. Recommended for the first send.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="onlyReady" @change="saveOnlyReady()"><span class="qc-toggle-track"></span></span>
+            </label>
+
+            <template x-if="!running">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <template x-if="!confirm">
+                    <div><button type="button" class="qc-btn qc-btn-primary" @click="confirm=true" :disabled="!toSendNow()">{{ 'Start sending'|trans }}</button></div>
+                </template>
+                <template x-if="confirm">
+                <div class="qc-settings-list" style="gap:12px">
+                    <div class="qc-alert qc-alert-warning">
+                        {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                        <div><strong x-text="{{ '%count% products will be sent to Google.'|trans|json_encode }}.replace('%count%', toSendNow())"></strong> {{ 'From then on every change in the shop is sent automatically. You can pause it at any time.'|trans }}</div>
+                    </div>
+                    <div class="qc-hstack" style="gap:8px">
+                        <button type="button" class="qc-btn qc-btn-primary" @click="start()" :disabled="busy">{{ 'Send now'|trans }}</button>
+                        <button type="button" class="qc-btn qc-btn-text" @click="confirm=false">{{ 'Cancel'|trans }}</button>
+                    </div>
+                </div>
+                </template>
+            </div>
+            </template>
+
+            <template x-if="running">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div>
+                    <div style="display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--surface-sunken)">
+                        <div :style="'width:' + percent() + '%;background:var(--accent);transition:width var(--dur) var(--ease)'"></div>
+                    </div>
+                    <div class="qc-line" style="margin-top:8px" x-text="progressText({{ 'Sending… %done% of %total% products'|trans|json_encode }}, {{ 'Checking products… %done% of %total%'|trans|json_encode }})"></div>
+                </div>
+            </div>
+            </template>
+        </div>
+    </div>
+    {% else %}
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qi-head qc-set-row" style="align-items:center">
+                <div class="qc-hstack" style="gap:8px">
+                    <span class="qc-dot{{ feed.active ? ' is-on' }}"></span>
+                    <span class="qc-set-title">{{ feed.active ? 'Sending is on — changes in the shop go to Google automatically'|trans : 'Sending is paused — Google keeps the last data it received'|trans }}</span>
+                </div>
+                <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                    {% if feed.active %}
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="syncNow()" :disabled="busy || running">{{ icons.icon('refresh', 14) }} {{ 'Sync now'|trans }}</button>
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="setStatus('pause')" :disabled="busy">{{ 'Pause'|trans }}</button>
+                    {% else %}
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-primary" @click="setStatus('resume')" :disabled="busy">{{ 'Resume'|trans }}</button>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:repeat(5,1fr)">
+                <div><span class="qc-caption">{{ 'In feed'|trans }}</span><div style="{{ qiNumber }}">{{ c.synced + c.failed }}</div></div>
+                <div><span class="qc-caption">{{ 'Approved'|trans }}</span><div style="{{ qiNumber }};color:var(--success)">{{ c.approved + c.limited }}</div></div>
+                <div><span class="qc-caption">{{ 'Pending'|trans }}</span><div style="{{ qiNumber }}">{{ c.pending }}</div></div>
+                <div><span class="qc-caption">{{ 'Disapproved'|trans }}</span><div style="{{ qiNumber }};color:var(--danger)">{{ c.disapproved }}</div></div>
+                <div><span class="qc-caption">{{ 'Waiting (issues)'|trans }}</span><div style="{{ qiNumber }};color:var(--warning)">{{ feed.onlyReady ? c.waiting_issues : 0 }}</div></div>
+            </div>
+            <template x-if="running">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div>
+                    <div style="display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--surface-sunken)">
+                        <div :style="'width:' + percent() + '%;background:var(--accent);transition:width var(--dur) var(--ease)'"></div>
+                    </div>
+                    <div class="qc-line" style="margin-top:8px" x-text="progressText({{ 'Sending… %done% of %total% products'|trans|json_encode }}, {{ 'Sending… %done% of %total% products'|trans|json_encode }})"></div>
+                </div>
+            </div>
+            </template>
+        </div>
+
+        <div class="qc-cols">
+            <div class="qc-grid">
+                <div class="qi-head qc-set-row">
+                    <div class="qc-set-title">{{ 'Most common issues'|trans }}</div>
+                    <a class="qc-linkbtn" href="{{ path('quince_insight_merchant', {'feed': feed.id, 'tab': 'products', 'status': 'disapproved'}) }}">{{ 'View products'|trans }}</a>
+                </div>
+                {% for issue in o.issues %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto">
+                        {% if issue.level == 'critical' %}<span class="qc-badge qc-badge-danger">{{ 'Critical'|trans }}</span>{% else %}<span class="qc-badge qc-badge-warning">{{ 'Warning'|trans }}</span>{% endif %}
+                        <div style="font-size:var(--text-sm)">{{ issue.message|trans }}</div>
+                        <span class="qc-line">{{ (issue.count == 1 ? '%count% product' : '%count% products')|trans({'%count%': issue.count}) }}</span>
+                    </div>
+                {% else %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><div class="qc-line">{{ feed.lastStatusSync ? 'None.'|trans : 'Google has not reported statuses yet — they arrive a few minutes after sending.'|trans }}</div></div>
+                {% endfor %}
+            </div>
+
+            <div class="qc-settings-list">
+                <div class="qc-grid">
+                    <div class="qi-head"><div class="qc-set-title">{{ 'Account'|trans }}</div></div>
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                        <div style="font-size:var(--text-sm)">{{ 'Website claimed'|trans }}</div>
+                        {% if o.claim == 'claimed' %}<span class="qc-badge qc-badge-success">{{ 'Yes'|trans }}</span>{% else %}<span class="qc-badge qc-badge-danger">{{ 'No'|trans }}</span>{% endif %}
+                    </div>
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                        <div style="font-size:var(--text-sm)">{{ 'Account-level issues'|trans }}</div>
+                        {% if o.accountIssues %}<span class="qc-badge qc-badge-danger">{{ o.accountIssues|length }}</span>{% else %}<span class="qc-badge qc-badge-success">{{ 'None'|trans }}</span>{% endif %}
+                    </div>
+                    {% for issue in o.accountIssues %}
+                        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                            <div>
+                                <div style="font-size:var(--text-sm)">{{ issue.title }}</div>
+                                {% if issue.detail %}<div class="qc-line" style="margin-top:4px">{{ issue.detail }}</div>{% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="qc-grid">
+                    <div class="qi-head"><div class="qc-set-title">{{ 'Activity'|trans }}</div></div>
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                        <div style="font-size:var(--text-sm)">{{ 'Last sync'|trans }}</div>
+                        <span class="qc-line">{% if o.lastSync %}{{ o.lastSyncAgo[0]|trans(o.lastSyncAgo[1]) }} · {{ o.lastSync.context.mode|default('delta')|trans }} · {{ (o.lastSync.context.errors|default(0) == 1 ? '%count% error' : '%count% errors')|trans({'%count%': o.lastSync.context.errors|default(0)}) }}{% else %}{{ 'never'|trans }}{% endif %}</span>
+                    </div>
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                        <div style="font-size:var(--text-sm)">{{ 'Waiting to send'|trans }}</div>
+                        <span class="qc-line">{{ (o.waiting == 1 ? '%count% product' : '%count% products')|trans({'%count%': o.waiting}) }}</span>
+                    </div>
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                        <div style="font-size:var(--text-sm)">{{ 'Failed'|trans }}</div>
+                        <span class="qc-line">{{ c.failed }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

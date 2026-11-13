@@ -1,0 +1,184 @@
+{#
+  Ekran deweloperski (`quince_insight_dev`) — tylko przy pliku `config/dev.php`, poza
+  bocznym paskiem i poza paczka wydania. Nie ma go w prototypie: to wzorzec uzycia
+  wspolnych elementow panelu dla agentow fali 1 i sprawdzian rdzenia.
+
+  Zakladki (`?tab=`): components | job | oauth | cron.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/fields.html.twig' as fields %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% set qiP = '@Modules/quince_insight/views/templates/admin/_partials/' %}
+
+{% block quince_body %}
+<div class="qc-screen">
+    {% include qiP ~ 'head.html.twig' with {
+        title: 'Developer tools',
+        description: 'Shared panel parts and core checks. Visible only with config/dev.php.'
+    } only %}
+
+    {% include qiP ~ 'tabs.html.twig' with {tabs: tabs, route: 'quince_insight_dev'} only %}
+
+    {% if fakeGoogle %}
+        {% include qiP ~ 'alert.html.twig' with {level: 'info', text: 'Fake Google mode is on: nothing is sent to Google, answers come from tests/fixtures/google/.'} only %}
+    {% endif %}
+
+    {# ---------------- Components ---------------- #}
+    {% if tab == 'components' %}
+        <div class="qc-grid" style="margin-top:20px">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Services in this shop'|trans }}</div></div>
+            <div x-data="{ on: {{ enabled|json_encode }} }">
+                {% for key in serviceKeys %}
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                        <span class="qc-mono">{{ key }}</span>
+                        <span class="qc-toggle">
+                            <input type="checkbox" :checked="on.includes({{ key|json_encode }})"
+                                   @change="QI.post({{ path('quince_insight_dev_service_toggle')|json_encode }}, {key: {{ key|json_encode }}, on: $event.target.checked}).then(r => { if (r.ok) { on = r.enabled; QI.toast({{ 'Saved. Reload to see the sidebar change.'|trans|json_encode }}, 'success'); } })">
+                            <span class="qc-toggle-track"></span>
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="qc-grid" style="margin-top:20px">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Alerts'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                {% include qiP ~ 'alert.html.twig' with {level: 'info', text: 'Information'} only %}
+                {% include qiP ~ 'alert.html.twig' with {level: 'success', text: 'Success'} only %}
+                {% include qiP ~ 'alert.html.twig' with {level: 'warning', text: 'The "%name%" cron has not run for a while. Check the cron job on your server.', params: {'%name%': 'Orders'}} only %}
+                {% include qiP ~ 'alert.html.twig' with {level: 'error', text: 'Error', items: ['First item', 'Second item']} only %}
+            </div>
+        </div>
+
+        <div class="qc-grid" style="margin-top:20px">
+            {% include qiP ~ 'empty.html.twig' with {icon: 'search', title: 'No data yet', text: 'Google needs a day or two to collect the first results.'} only %}
+        </div>
+
+        <div class="qc-grid" style="margin-top:20px">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Toasts and copy'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto auto">
+                <div class="qi-copyrow"><span class="qc-mono">https://yourshop.com/index.php?fc=module&amp;module=quince_insight&amp;controller=oauth</span></div>
+                <button type="button" class="qc-btn qc-btn-outline qc-btn-sm" @click="QI.copy('https://yourshop.com/index.php?fc=module&module=quince_insight&controller=oauth')" x-data>{{ 'Copy'|trans }}</button>
+                <button type="button" class="qc-btn qc-btn-outline qc-btn-sm" x-data @click="QI.toast({{ 'Saved'|trans|json_encode }}, 'success')">{{ 'Toast'|trans }}</button>
+                <button type="button" class="qc-btn qc-btn-outline qc-btn-sm" x-data @click="QI.post({{ path('quince_insight_analytics_accounts')|json_encode }})">{{ 'POST to a stub (501)'|trans }}</button>
+            </div>
+        </div>
+
+        <div class="qc-grid" style="margin-top:20px">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Icons'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div class="qc-hstack" style="gap:14px;flex-wrap:wrap">
+                    {% for name in ['chevronDown','chevronRight','drag','trash','plus','x','check','search','alertCircle','alertTriangle','info','refresh','checkCircle','image','layout','box','puzzle','settings','edit','eye','upload','download','folder','link','cookie','shield','user'] %}
+                        <span title="{{ name }}">{{ icons.icon(name, 16) }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Lista stronicowana po stronie serwera: `?page=` i `?per=`, stopka tylko gdy lista sie nie miesci. #}
+        <div class="qc-grid" style="margin-top:20px">
+            <div class="qc-grid-head" style="display:grid;grid-template-columns:80px 1fr;gap:6px">
+                <span>#</span><span>{{ 'Name'|trans }}</span>
+            </div>
+            {% for row in rows %}
+                <div class="qc-grid-row" style="display:grid;grid-template-columns:80px 1fr;gap:6px">
+                    <span class="qc-mono">{{ row.n }}</span><span>{{ row.name }}</span>
+                </div>
+            {% endfor %}
+            {% include qiP ~ 'listfoot.html.twig' with {pagination: pagination, route: 'quince_insight_dev', params: {'tab': 'components'}} only %}
+        </div>
+    {% endif %}
+
+    {# ---------------- Background job ---------------- #}
+    {% if tab == 'job' %}
+        <div class="qc-grid" style="margin-top:20px">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto"
+                 x-data="{ start(extra) { QI.post({{ path('quince_insight_dev_job_start')|json_encode }}, Object.assign({steps: 6}, extra || {})).then(r => r.ok && QI.jobStart(r.job)); } }">
+                <div>
+                    <div class="qc-set-title">{{ 'Demo job core.demo'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Six short steps driven by QI.job. Close the tab and the cron finishes it.'|trans }}</div>
+                </div>
+                <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                    <button type="button" class="qc-btn qc-btn-primary qc-btn-sm" @click="start()">{{ 'Start'|trans }}</button>
+                    <button type="button" class="qc-btn qc-btn-outline qc-btn-sm" @click="start({fail_at: 3})">{{ 'Start and fail at step 3'|trans }}</button>
+                </div>
+            </div>
+        </div>
+        {% include qiP ~ 'job_progress.html.twig' with {job: job, type: 'core.demo'} only %}
+    {% endif %}
+
+    {# ---------------- Google sign-in ---------------- #}
+    {% if tab == 'oauth' %}
+        {% if oauthResult %}
+            <div style="margin-top:20px">
+                {% include qiP ~ 'alert.html.twig' with {
+                    level: oauthResult == 'ok' ? 'success' : (oauthResult == 'partial' ? 'warning' : 'error'),
+                    text: 'Sign-in result: %result%', params: {'%result%': oauthResult}
+                } only %}
+            </div>
+        {% endif %}
+        <div class="qc-grid" style="margin-top:20px">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:200px 1fr">
+                <span class="qc-set-title">{{ 'Redirect URI'|trans }}</span>
+                <span class="qc-mono">{{ redirectUri }}</span>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:200px 1fr">
+                <span class="qc-set-title">{{ 'Status'|trans }}</span>
+                <span class="qc-mono">{{ connection ? connection.status : 'none' }}</span>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:200px 1fr">
+                <span class="qc-set-title">{{ 'Google account'|trans }}</span>
+                <span class="qc-mono">{{ connection and connection.googleEmail ? connection.googleEmail : '-' }}</span>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:200px 1fr">
+                <span class="qc-set-title">{{ 'Granted scopes'|trans }}</span>
+                <span class="qc-mono" style="white-space:pre-line">{{ connection ? connection.scopes|join("\n") : '-' }}</span>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:200px 1fr">
+                <span class="qc-set-title">{{ 'Missing for'|trans }}</span>
+                <span class="qc-mono">{{ missing ? missing|join(', ') : '-' }}</span>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:200px 1fr">
+                <span class="qc-set-title">QUINCE_INSIGHT_FAKE_DENY_SCOPE</span>
+                <span class="qc-mono">{{ denyScope ?: '-' }}</span>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto">
+                <span class="qc-line">{{ 'Fake mode signs in as owner@yourshop.com straight away.'|trans }}</span>
+                <form method="post" action="{{ path('quince_insight_dev_oauth_start') }}">
+                    {{ fields.csrf('quince_insight_dev_oauth_start') }}
+                    <button type="submit" class="qc-btn qc-btn-primary qc-btn-sm"{{ fake ? '' : ' disabled' }}>{{ 'Sign in with Google'|trans }}</button>
+                </form>
+                <form method="post" action="{{ path('quince_insight_dev_oauth_disconnect') }}">
+                    {{ fields.csrf('quince_insight_dev_oauth_disconnect') }}
+                    <button type="submit" class="qc-btn qc-btn-outline qc-btn-sm"{{ connection ? '' : ' disabled' }}>{{ 'Disconnect'|trans }}</button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+    {# ---------------- Cron ---------------- #}
+    {% if tab == 'cron' %}
+        <div class="qc-grid" style="margin-top:20px">
+            {% for group in groups %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:120px 1fr auto">
+                    <div>
+                        <div class="qc-set-title">{{ group.key }}</div>
+                        <div class="qc-line" style="margin-top:4px">
+                            {{ group.key in needed or group.key == 'all' ? 'needed'|trans : 'not needed'|trans }}
+                            · {{ group.state.last_run ?: 'never'|trans }}{{ group.state.last_status ? ' · ' ~ group.state.last_status : '' }}{{ group.state.overdue ? ' · ' ~ 'overdue'|trans : '' }}
+                        </div>
+                    </div>
+                    <div class="qi-copyrow"><span class="qc-mono">{{ group.url }}</span></div>
+                    <button type="button" class="qc-btn qc-btn-outline qc-btn-sm" x-data @click="QI.copy({{ group.url|json_encode }})">{{ 'Copy'|trans }}</button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block quince_actionbar %}{% endblock %}

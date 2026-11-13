@@ -1,0 +1,111 @@
+{#
+  Zakladka Shipping ekranu Merchant Center (agent M). Uklad 1:1 z prototypem (`gm.tab==='shipping'`).
+  Lewa kolumna: uslugi z przewoznikow PrestaShop (serwer). Prawa: co jest teraz w Merchant Center
+  (podglad `merchant_shipping_preview` przy otwarciu) — dokladnie to zostanie nadpisane.
+  Wysylka tylko po wlaczeniu potwierdzenia, z odciskiem podgladu (zmiana w miedzyczasie = odmowa).
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{# Ekran agenta E dolacza zakladke z {data: tabData}, podglad M z tabData wprost. #}
+{% set mt = mt is defined ? mt : (data.mt ?? {}) %}
+<script src="{{ asset('../modules/quince_insight/views/js/admin/merchant-tools.js') }}"></script>
+{% set svc = [] %}
+{% for s in mt.services %}{% set svc = svc|merge([s|filter((v, k) => k != 'google')]) %}{% endfor %}
+{# Decyzja #17: bez feedu nie ma krajow wysylki — nic nie jest wysylane. #}
+{% if mt.hasFeeds is defined and not mt.hasFeeds %}
+<div class="qc-grid">
+    <div class="qc-empty">
+        <div class="qc-empty-text">{{ 'Add a feed first. Shipping is sent for the countries of your feeds.'|trans }}</div>
+        <div style="margin-top:12px"><a class="qc-btn qc-btn-sm qc-btn-primary" href="{{ path('quince_insight_merchant', {tab: 'new'}) }}">{{ 'Add feed'|trans }}</a></div>
+    </div>
+</div>
+{% else %}
+<div class="qc-cols" x-data="QIMt.shipping({{ {
+    services: svc,
+    skipped: mt.skipped,
+    now: 'now'|date('Y-m-d H:i:s'),
+    urls: {preview: path('quince_insight_merchant_shipping_preview'), send: path('quince_insight_merchant_shipping_send')},
+    i18n: {
+        none: 'No shipping settings in Merchant Center yet'|trans, service: 'service'|trans, services: 'services'|trans,
+        sentBy: 'sent by this module'|trans, manual: 'set manually in Merchant Center'|trans,
+        justNow: 'just now'|trans, minAgo: '%n% min ago'|trans, hAgo: '%n% h ago'|trans
+    }
+}|json_encode }})">
+    <div class="qc-grid">
+        <div class="qi-head">
+            <div class="qc-set-title">{{ 'PrestaShop carriers'|trans }}</div>
+            <div class="qc-line" style="margin-top:4px">
+                {# Liczba pojedyncza / mnoga: osobne zrodla (modul nie uzywa odmiany ICU). #}
+                {% set qiSvcN = mt.services|length %}
+                {% set qiCtrN = mt.countries|length %}
+                {% if qiSvcN == 1 and qiCtrN == 1 %}{{ '1 service in 1 country.'|trans }}
+                {% elseif qiSvcN == 1 %}{{ '1 service in %countries% countries.'|trans({'%countries%': qiCtrN}) }}
+                {% elseif qiCtrN == 1 %}{{ '%services% services in 1 country.'|trans({'%services%': qiSvcN}) }}
+                {% else %}{{ '%services% services in %countries% countries.'|trans({'%services%': qiSvcN, '%countries%': qiCtrN}) }}{% endif %}
+                {{ 'Carriers from other modules are skipped.'|trans }}
+            </div>
+        </div>
+        <div class="qc-grid-head" style="grid-template-columns:1fr 60px 1fr 90px;padding:10px 18px"><div>{{ 'Carrier'|trans }}</div><div>{{ 'Country'|trans }}</div><div>{{ 'Rate'|trans }}</div><div>{{ 'Delivery'|trans }}</div></div>
+        <template x-for="c in services" :key="c.name">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 60px 1fr 90px">
+                <span class="qc-set-title" x-text="c.name"></span>
+                <span class="qc-line" x-text="c.countries.length > 3 ? c.countries.slice(0, 3).join(', ') + ' +' + (c.countries.length - 3) : c.countries.join(', ')" :title="c.countries.join(', ')"></span>
+                <span class="qc-line" x-text="c.rate"></span>
+                <span class="qc-line" x-text="c.delivery"></span>
+            </div>
+        </template>
+        <template x-if="!services.length">
+            <div class="qc-empty"><div class="qc-empty-text">{{ 'No carrier can be sent to Merchant Center.'|trans }}</div></div>
+        </template>
+        <template x-for="s in skipped" :key="'skip' + s.name">
+            <div class="qc-grid-row qi-row qi-off" style="grid-template-columns:1fr 2fr">
+                <span class="qc-set-title" x-text="s.name"></span>
+                <span class="qc-sub" x-text="s.reason"></span>
+            </div>
+        </template>
+    </div>
+
+    <div class="qc-grid">
+        <div class="qi-head">
+            <div class="qc-set-title">{{ 'In Merchant Center now'|trans }}</div>
+            <div class="qc-line" style="margin-top:4px" x-show="shipState!=='loading' && shipState!=='error'" x-text="currentLine()"></div>
+            <div class="qc-line" style="margin-top:4px" x-show="shipState==='loading'"><span class="qc-spinner"></span></div>
+        </div>
+        {% if not mt.hasAccount %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'info', text: 'Choose a Merchant Center account first.'} only %}
+            </div>
+        {% else %}
+        <template x-if="shipState==='error'">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div class="qc-alert qc-alert-danger" role="alert">
+                    {{ icons.message('danger', 18, 'qc-alert-icon') }}
+                    <div style="flex:1" x-text="loadError"></div>
+                    <button type="button" class="qc-linkbtn" @click="load()">{{ 'Try again'|trans }}</button>
+                </div>
+            </div>
+        </template>
+        <template x-for="s in (current || [])" :key="'cur' + s.name">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 1fr auto">
+                <span class="qc-set-title" x-text="s.name"></span>
+                <span class="qc-line" x-text="s.countries.join(', ')"></span>
+                <span class="qc-badge" :class="s.active ? 'qc-badge-success' : ''" x-text="s.active ? {{ 'Active'|trans|json_encode }} : {{ 'Inactive'|trans|json_encode }}"></span>
+            </div>
+        </template>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div class="qc-alert qc-alert-warning">
+                {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                <div>{{ 'Sending replaces all shipping settings in the Merchant Center account, including the ones set by hand.'|trans }}</div>
+            </div>
+        </div>
+        <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+            <div class="qc-set-title">{{ 'Replace them with the carriers on the left'|trans }}</div>
+            <span class="qc-toggle"><input type="checkbox" x-model="shipConfirm" :disabled="shipState!=='idle' || !services.length"><span class="qc-toggle-track"></span></span>
+        </label>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div><button type="button" class="qc-btn qc-btn-sm qc-btn-primary" :disabled="!shipConfirm || shipState!=='idle' || !services.length" @click="send()"><span class="qc-spinner" x-show="shipState==='running'"></span> {{ 'Send to Merchant Center'|trans }}</button></div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

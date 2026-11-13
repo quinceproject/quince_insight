@@ -1,0 +1,17 @@
+{#
+  Tresc ekranu-stubu z fali 0: naglowek i stan pusty. Znika, gdy wlasciciel ekranu
+  napisze wlasny szablon.
+
+  Zmienne (z kontrolera): title, description.
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-screen">
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/head.html.twig' with {
+        title: title|default(navTitle), description: description|default('')
+    } only %}
+    <div class="qc-grid">
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {
+            icon: 'puzzle', text: 'This screen is not built yet.'
+        } only %}
+    </div>
+</div>

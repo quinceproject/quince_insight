@@ -1,0 +1,96 @@
+{#
+  Zakladka Property — 1:1 z prototypu (`an.tab==='property'`). Dane: `property` z PropertyInfo::get(),
+  `keyEvents` (zdarzenia kluczowe GA4 wlaczone w Events).
+  Odstepstwa (raport B §3): przy braku sekretu MP przycisk "Create secret" (z potwierdzeniem
+  zbierania danych, gdy Google go wymaga); powiazanie z Google Ads tylko do odczytu — zmiana w GA4.
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set partials = '@Modules/quince_insight/views/templates/admin/_partials/' %}
+{% if property.error is defined %}
+    <div style="margin-bottom:16px">
+        {% include partials ~ 'alert.html.twig' with {level: 'danger', text: '%message%', params: {'%message%': property.error}} only %}
+    </div>
+{% else %}
+<div class="qc-cols">
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Property'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:160px 1fr"><span class="qc-caption" style="margin:0">{{ 'Property'|trans }}</span><span style="font-size:var(--text-sm)">{{ property.displayName ?: propertyName }}</span></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:160px 1fr{{ property.streamFound ? '' : ' auto' }}">
+                <span class="qc-caption" style="margin:0">{{ 'Web stream'|trans }}</span>
+                {% if property.streamFound %}
+                    <span class="qc-mono">{{ property.defaultUri }} · {{ property.measurementId }}</span>
+                {% else %}
+                    <span style="font-size:var(--text-sm)">{{ 'The saved web data stream is no longer in this property.'|trans }}</span>
+                    <span class="qc-badge qc-badge-danger">{{ 'Missing'|trans }}</span>
+                {% endif %}
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:160px 1fr"><span class="qc-caption" style="margin:0">{{ 'Time zone · currency'|trans }}</span><span style="font-size:var(--text-sm)">{{ property.timeZone }} · {{ property.currencyCode }}</span></div>
+
+            <div x-data="qiAnalyticsSecret({{ {url: path('quince_insight_analytics_secret_create'), ackNeeded: ackNeeded}|json_encode }})">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:160px 1fr auto">
+                    <span class="qc-caption" style="margin:0">{{ 'Measurement Protocol'|trans }}</span>
+                    {% if property.hasSecret and property.secretFound %}
+                        <span style="font-size:var(--text-sm)">{{ 'Secret created by the module'|trans }}</span>
+                        <span class="qc-badge qc-badge-success">{{ 'Valid'|trans }}</span>
+                    {% else %}
+                        <span style="font-size:var(--text-sm)">{{ property.hasSecret ? 'The saved secret is no longer in GA4 — purchases and refunds are not sent from the server.'|trans : 'No secret yet — purchases and refunds are not sent from the server.'|trans }}</span>
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="run()" :disabled="busy || (ackNeeded && !ack)"><span class="qc-spinner" x-show="busy" x-cloak></span> {{ 'Create secret'|trans }}</button>
+                    {% endif %}
+                </div>
+                {% if not (property.hasSecret and property.secretFound) %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="ackNeeded" x-cloak>
+                    <label class="qc-hstack" style="justify-content:space-between;cursor:pointer;flex-wrap:nowrap">
+                        <span class="qc-set-title">{{ 'I acknowledge Google\'s user data collection terms for this property'|trans }}</span>
+                        <span class="qc-toggle"><input type="checkbox" x-model="ack"><span class="qc-toggle-track"></span></span>
+                    </label>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="qc-grid-row qi-row" style="grid-template-columns:160px 1fr" x-data="qiAnalyticsRetention({{ {url: path('quince_insight_analytics_save'), value: property.retentionMonths}|json_encode }})">
+                <span class="qc-caption" style="margin:0">{{ 'Data retention'|trans }}</span>
+                <div class="qc-seg">
+                    <label class="qc-seg-btn"><input type="radio" value="2" x-model="value" @change="save()" :disabled="busy">{{ '2 months'|trans }}</label>
+                    <label class="qc-seg-btn"><input type="radio" value="14" x-model="value" @change="save()" :disabled="busy">{{ '14 months'|trans }}</label>
+                </div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div class="qc-hstack" style="gap:8px">
+                    <a class="qc-btn qc-btn-sm qc-btn-outline" href="{{ path('quince_insight_wizard', {'step': 'ga4'}) }}">{{ 'Change property'|trans }}</a>
+                    <a class="qc-btn qc-btn-sm qc-btn-text" href="https://analytics.google.com/" target="_blank" rel="noopener">{{ 'Open GA4'|trans }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qi-head qc-set-row">
+                <div>
+                    <div class="qc-set-title">{{ 'Key events'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ keyEventsError ?: (keyEvents ? keyEvents|join(', ') : 'None'|trans) }}</div>
+                </div>
+                <a class="qc-linkbtn" href="{{ path('quince_insight_events', {'tab': 'events'}) }}">{{ 'Change in Events'|trans }}</a>
+            </div>
+        </div>
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Links'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                <div>
+                    <div class="qc-set-title">{{ 'Google Ads'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ property.adsCustomers ? 'Linked — conversions and audiences are shared.'|trans : 'Not linked.'|trans }}</div>
+                </div>
+                <a class="qc-linkbtn" href="https://analytics.google.com/" target="_blank" rel="noopener">{{ 'Open GA4'|trans }}</a>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                <div>
+                    <div class="qc-set-title">{{ 'Search Console'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Google does not allow linking through the API — done once in GA4 settings.'|trans }}</div>
+                </div>
+                <a class="qc-linkbtn" href="https://analytics.google.com/" target="_blank" rel="noopener">{{ 'Open GA4'|trans }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

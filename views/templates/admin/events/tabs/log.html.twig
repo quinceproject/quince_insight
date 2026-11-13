@@ -1,0 +1,48 @@
+{# Events -> Event log — 1:1 z prototypu. Filtr ?event=, stronicowanie po stronie serwera; wlacznik i retencja zapisuja sie od razu. #}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% set cols = 'grid-template-columns:170px 170px 1fr 24px' %}
+<div>
+    <div class="qc-filters" style="justify-content:space-between" x-data="{ logOn: {{ logOn ? 'true' : 'false' }}, keep: {{ keepDays }} }">
+        <div class="qc-select-wrap" style="width:220px">
+            <select class="qc-field-base qc-select qc-focusable" style="width:100%" aria-label="{{ 'Event'|trans }}" onchange="window.location.href = this.value">
+                <option value="{{ path('quince_insight_events', {'tab': 'log'}) }}">{{ 'All events'|trans }}</option>
+                {% for key in allEvents %}
+                    <option value="{{ path('quince_insight_events', {'tab': 'log', 'event': key}) }}"{{ logEvent == key ? ' selected' }}>{{ key }}</option>
+                {% endfor %}
+            </select>
+            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+        </div>
+        <div class="qc-hstack" style="gap:16px;flex-wrap:nowrap">
+            <label class="qc-toggle"><input type="checkbox" x-model="logOn" @change="qiEvents.save('logOn', logOn)"><span class="qc-toggle-track"></span><span class="qc-toggle-text">{{ 'Log events'|trans }}</span></label>
+            <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                <span class="qc-line">{{ 'Keep for'|trans }}</span>
+                <input type="number" class="qc-field-base qc-field-sm qc-focusable" style="width:70px" min="1" max="365" x-model.number="keep" @change="qiEvents.save('logKeepDays', keep)">
+                <span class="qc-line">{{ 'days'|trans }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="qc-grid">
+        <div class="qc-grid-head" style="{{ cols }};padding:10px 18px"><div>{{ 'Time'|trans }}</div><div>{{ 'Event'|trans }}</div><div>{{ 'Page'|trans }}</div><div></div></div>
+        {% for l in rows %}
+            <div x-data="{ open: false }">
+                <div class="qc-grid-row qi-row" style="{{ cols }};cursor:pointer" @click="open = !open">
+                    <span class="qc-line">{{ l.time }}</span>
+                    <span class="qc-mono" style="font-size:var(--text-xs)">{{ l.event }}</span>
+                    <span class="qc-mono" style="font-size:var(--text-xs);color:var(--fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ l.page }}</span>
+                    <span :style="{transform: open ? 'rotate(180deg)' : 'none', color: 'var(--fg-3)'}">{{ icons.icon('chevronDown', 14) }}</span>
+                </div>
+                <template x-if="open">
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr;background:var(--surface-sunken)">
+                        <pre class="qc-pre qc-mono">{{ l.payload }}</pre>
+                    </div>
+                </template>
+            </div>
+        {% else %}
+            <div class="qc-empty"><div class="qc-empty-text">{{ logOn ? 'No events logged yet.'|trans : 'The event log is off. Switch on “Log events” to see what the shop sends.'|trans }}</div></div>
+        {% endfor %}
+    </div>
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/listfoot.html.twig' with {
+        pagination: pagination, route: 'quince_insight_events', params: logEvent == 'all' ? {'tab': 'log'} : {'tab': 'log', 'event': logEvent}
+    } only %}
+</div>

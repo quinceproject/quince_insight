@@ -1,0 +1,85 @@
+{# Zakladka Products — 1:1 z prototypu (gm.tab==='products'); lista i filtr stanu po stronie serwera. #}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set qiCols = 'grid-template-columns:28px 60px 1fr 120px 140px 1fr 24px' %}
+<div x-data="QIMerchant.products({{ {
+        feed: feed.id,
+        actionUrl: path('quince_insight_merchant_products_action')
+     }|json_encode }})">
+    <form class="qc-filters" method="get" action="{{ path('quince_insight_merchant') }}">
+        <input type="hidden" name="feed" value="{{ feed.id }}">
+        <input type="hidden" name="tab" value="products">
+        <input type="hidden" name="status" value="{{ status }}">
+        <input type="text" name="q" value="{{ q }}" class="qc-field-base qc-focusable" style="width:260px" placeholder="{{ 'Name, SKU, EAN…'|trans }}">
+        <div class="qc-seg">
+            {% for s in statuses %}
+                <a class="qc-seg-btn{{ s == status ? ' is-active' }}" href="{{ path('quince_insight_merchant', {'feed': feed.id, 'tab': 'products', 'status': s, 'q': q}) }}">{{ s|capitalize|trans }}</a>
+            {% endfor %}
+        </div>
+    </form>
+
+    <div class="qc-grid">
+        <div class="qc-bulk-bar" x-show="count()" x-cloak>
+            <span x-text="{{ '%count% selected'|trans|json_encode }}.replace('%count%', count())"></span>
+            {% if not feed.draft %}
+                <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="run('send')" :disabled="busy">{{ 'Send again'|trans }}</button>
+            {% endif %}
+            <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="run('exclude')" :disabled="busy">{{ 'Exclude from feed'|trans }}</button>
+            <button type="button" class="qc-btn qc-btn-sm qc-btn-text" @click="selected={}">{{ 'Cancel'|trans }}</button>
+        </div>
+        <div class="qc-grid-head" style="{{ qiCols }};padding:10px 18px">
+            <div></div><div>{{ 'ID'|trans }}</div><div>{{ 'Product'|trans }}</div><div>{{ 'SKU'|trans }}</div><div>{{ feed.draft ? 'Check'|trans : 'Google status'|trans }}</div><div>{{ 'Issue'|trans }}</div><div></div>
+        </div>
+        {% for p in rows %}
+        <div>
+            <div class="qc-grid-row qi-row" style="{{ qiCols }};cursor:pointer" @click="toggle({{ p.key|json_encode }})">
+                <span @click.stop><label class="qc-toggle qc-toggle-sm"><input type="checkbox" x-model="selected[{{ p.key|json_encode }}]"><span class="qc-toggle-track"></span></label></span>
+                <span class="qc-line">{{ p.id }}</span>
+                <div>
+                    <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ p.name }}</div>
+                    <div class="qc-sub" style="margin-top:4px">{{ p.sub }}</div>
+                </div>
+                <span class="qc-mono">{{ p.sku }}</span>
+                <div><span class="qc-badge {{ p.state.cls }}">{{ p.state.label|trans }}</span></div>
+                <span class="qc-line">{% for i in p.issues %}{{ i|trans }}{{ not loop.last ? ', ' }}{% else %}—{% endfor %}</span>
+                <span class="qc-rowchevron" :style="{transform: expanded === {{ p.key|json_encode }} ? 'rotate(180deg)' : 'none', color: 'var(--fg-3)'}">{{ icons.icon('chevronDown', 14) }}</span>
+            </div>
+            <template x-if="expanded === {{ p.key|json_encode }}">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 1fr;align-items:start;background:var(--surface-sunken)">
+                <div>
+                    <div class="qc-set-title" style="margin-bottom:10px">{{ 'Data for Google'|trans }}</div>
+                    {% for row in p.google %}
+                        <div class="qc-hstack" style="gap:12px;flex-wrap:nowrap;padding:4px 0">
+                            <span class="qc-caption" style="width:120px;margin:0;flex:none">{{ row[0]|trans }}</span>
+                            <span class="qc-mono" style="font-size:var(--text-xs)">{{ row[1] starts with '—' ? row[1]|trans : row[1] }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="qc-settings-list" style="gap:12px">
+                    <div class="qc-set-title">{{ 'Issues'|trans }}</div>
+                    {% if p.issues %}
+                        <div class="qc-alert qc-alert-warning">
+                            {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                            <div>{{ '%issue% — fix it in the product or with a rule in Mapping / Rules.'|trans({'%issue%': p.issues|map(i => i|trans)|join(', ')}) }}</div>
+                        </div>
+                    {% else %}
+                        <div class="qc-line">{{ 'None.'|trans }}</div>
+                    {% endif %}
+                    <div class="qc-hstack" style="gap:8px">
+                        <a class="qc-btn qc-btn-sm qc-btn-outline" href="{{ path('admin_products_edit', {'productId': p.idProduct}) }}" target="_blank" rel="noopener">{{ 'Edit product'|trans }}</a>
+                        {% if p.canSend %}
+                            <button type="button" class="qc-btn qc-btn-sm qc-btn-text" @click="run('send', [{{ p.key|json_encode }}])" :disabled="busy">{{ 'Send again'|trans }}</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            </template>
+        </div>
+        {% else %}
+            <div class="qc-empty"><div class="qc-empty-text">{{ 'No products match these filters.'|trans }}</div></div>
+        {% endfor %}
+    </div>
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/listfoot.html.twig' with {
+        pagination: pagination, route: 'quince_insight_merchant', params: {'feed': feed.id, 'tab': 'products', 'status': status, 'q': q}
+    } only %}
+</div>

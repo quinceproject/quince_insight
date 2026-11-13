@@ -1,0 +1,113 @@
+{#
+  Krok `verify` — weryfikacja witryny, 1:1 z prototypu `cur==='verify'`.
+
+  Tag meta trafia na strone sklepu dopiero po przelaczniku "Add this tag to the shop"
+  i "Add tag and verify" (zgoda usera). "Remove" jest w Settings → Google connection
+  (decyzja #25): najpierw tag ze strony, potem wlasnosc w Google.
+
+  Zmienne: data (VerifyStep::data), formShop, wizard.
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set v = data %}
+
+{% if v.verifiedBy %}
+    <div class="qc-alert qc-alert-success" style="margin-bottom:18px">
+        {{ icons.icon('checkCircle', 18, 'qc-alert-icon') }}
+        <div style="flex:1">
+            <strong>{{ '%name% is already verified.'|trans({'%name%': v.name}) }}</strong>
+            {{ 'It shares the domain with %name%, so the same verification covers it. Nothing to add on this shop.'|trans({'%name%': v.verifiedBy.name}) }}
+        </div>
+    </div>
+{% endif %}
+
+<div x-data="QIWizardVerify({{ {
+        shop: formShop,
+        state: v.initial,
+        method: v.method,
+        meta: v.meta,
+        shared: v.verifiedBy is not null,
+        checkUrl: path('quince_insight_verify_check'),
+        startUrl: path('quince_insight_verify_start')
+    }|json_encode }})">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Verify your site'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Merchant Center and Search Console need proof that %domain% is yours. One verification covers both.'|trans({'%domain%': v.domain}) }}</div>
+        </div>
+    </div>
+
+    {% if not v.verifiedBy %}
+    <div class="qc-cols">
+        <div class="qc-grid qc-disabled-area" :class="{'is-off': state==='checking' || state==='adding' || state==='verified'}">
+            <div class="qi-head"><div class="qc-set-title">{{ 'How to verify'|trans }}</div></div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                <input type="radio" class="qc-radio" value="meta" x-model="method" style="margin-top:2px">
+                <div style="min-width:0">
+                    <div class="qc-hstack" style="gap:8px">
+                        <span class="qc-set-title">{{ 'Add a verification tag'|trans }}</span>
+                        <span class="qc-badge qc-badge-accent">{{ 'Recommended'|trans }}</span>
+                    </div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'One meta tag in the &lt;head&gt; of every page. Visitors do not see it.'|trans|raw }}</div>
+                    <pre class="qc-pre qc-mono" style="margin-top:12px" x-show="method==='meta'">&lt;meta name="google-site-verification" content="•••••••••••••"&gt;</pre>
+                </div>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                <input type="radio" class="qc-radio" value="manual" x-model="method" style="margin-top:2px">
+                <div>
+                    <div class="qc-set-title">{{ "I'll verify it another way"|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'DNS record, HTML file, or the site is already verified — the module only checks. Only a DNS record also verifies the whole domain in Search Console.'|trans }}</div>
+                </div>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer" x-show="method==='meta'">
+                <div class="qc-set-title">{{ 'Add this tag to the shop'|trans }}</div>
+                <span class="qc-toggle"><input type="checkbox" x-model="confirm"><span class="qc-toggle-track"></span></span>
+            </label>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div>
+                    <button type="button" class="qc-btn qc-btn-sm qc-btn-primary" x-show="method==='meta'" :disabled="!confirm" @click="add()"
+                            x-text="state==='error' ? {{ 'Try again'|trans|json_encode }} : {{ 'Add tag and verify'|trans|json_encode }}">{{ 'Add tag and verify'|trans }}</button>
+                    <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" x-show="method==='manual'" x-cloak @click="manual()">{{ 'Check again'|trans }}</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Status'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr">
+                <span style="display:flex">
+                    <span class="qc-spinner" style="color:var(--accent)" x-show="state==='checking' || state==='adding'" x-cloak></span>
+                    <span class="qc-dot" :class="{'is-on': state==='verified'}" x-show="state!=='checking' && state!=='adding'"></span>
+                </span>
+                <div>
+                    <div class="qc-mono" style="font-size:var(--text-sm)">{{ v.url }}</div>
+                    <div class="qc-line" style="margin-top:4px" x-text="{{ {
+                        checking: 'Checking with Google…'|trans,
+                        adding: 'Adding the tag and asking Google to verify…'|trans,
+                        unverified: 'Not verified for this Google account yet.'|trans,
+                        error: 'Not verified — see below.'|trans,
+                        still: 'Still not verified.'|trans,
+                        verified: 'Verified.'|trans,
+                        idle: ''
+                    }|json_encode }}[state]"></div>
+                </div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="['error','still','verified'].includes(state)" x-cloak>
+                <div class="qc-alert qc-alert-danger" x-show="state==='error'">
+                    {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                    <div>{{ 'Google could not find the tag on %url%. If the shop uses a page cache, clear it and try again.'|trans({'%url%': v.url}) }}</div>
+                </div>
+                <div class="qc-alert qc-alert-danger" x-show="state==='still'">
+                    {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                    <div>{{ 'DNS changes can take up to a few hours. Check again later.'|trans }}</div>
+                </div>
+                <div class="qc-alert qc-alert-success" x-show="state==='verified'">
+                    {{ icons.icon('checkCircle', 18, 'qc-alert-icon') }}
+                    <div style="flex:1">{{ 'Done.'|trans }} <span x-show="method==='meta'">{{ 'The tag stays in place — removing it would cancel the verification.'|trans }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>

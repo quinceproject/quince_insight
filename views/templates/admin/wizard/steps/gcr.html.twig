@@ -1,0 +1,82 @@
+{#
+  Krok kreatora `gcr` — Google Customer Reviews, 1:1 z prototypu (`cur==='gcr'`).
+  Sam blok tresci wewnatrz formularza kreatora; przyciski daje powloka (agent A).
+
+  Zmienne: data (GcrStep::data), errors (pole => komunikat).
+  Pola do GcrStep::save(): survey, confirmed, carrier[<id_reference>], days.
+  Przewoznicy sa prawdziwi (Carrier::getCarriers), nie z prototypu (`GCR_CARRIERS`).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set errs = errors|default({}) %}
+<div x-data="{ survey: {{ data.survey ? 'true' : 'false' }} }">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Google Customer Reviews'|trans }}</div>
+            <div class="qc-head-desc">{{ 'The customer agrees to a survey when ordering. Google sends the survey by e-mail after the parcel should have arrived.'|trans }}</div>
+        </div>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer;border-top:0">
+                    <div>
+                        <div class="qc-set-title">{{ 'Ask customers after an order'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'A small Google window on the order confirmation page asks whether the customer wants a survey. Nothing is rated at that moment.'|trans }}</div>
+                    </div>
+                    <span class="qc-toggle"><input type="hidden" name="survey" value="0"><input type="checkbox" name="survey" value="1" x-model="survey"{{ data.survey ? ' checked' }}><span class="qc-toggle-track"></span></span>
+                </label>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto" :class="{'qc-disabled-area is-off': !survey}">
+                    <div>
+                        <div class="qc-set-title">{{ 'Enable the programme in Merchant Center'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Google does not let a module switch it on. In Merchant Center open Settings → Add-ons → Customer Reviews and accept the agreement.'|trans }}</div>
+                        <div style="margin-top:8px"><a class="qc-linkbtn" href="https://merchants.google.com/" target="_blank" rel="noopener">{{ 'Open Merchant Center'|trans }}</a></div>
+                    </div>
+                </div>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer" :class="{'qc-disabled-area is-off': !survey}">
+                    <div>
+                        <div class="qc-set-title">{{ 'I have enabled it in Merchant Center'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Until this is on, the module adds nothing to the confirmation page.'|trans }}</div>
+                    </div>
+                    <span class="qc-toggle"><input type="hidden" name="confirmed" value="0"><input type="checkbox" name="confirmed" value="1"{{ data.confirmed ? ' checked' }}><span class="qc-toggle-track"></span></span>
+                </label>
+            </div>
+
+            <div class="qc-grid" :class="{'qc-disabled-area is-off': !survey}">
+                <div class="qi-head">
+                    <div class="qc-set-title">{{ 'Estimated delivery'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Google sends the survey after this many days. Set it so the survey never arrives before the parcel.'|trans }}</div>
+                </div>
+                {% for c in data.carriers %}
+                    {% set field = 'carrier[' ~ c.ref ~ ']' %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ c.name }}</div>
+                        <div class="qc-hstack" style="gap:10px;flex-wrap:nowrap">
+                            <input type="number" class="qc-field-base qc-focusable" style="width:72px" min="1" max="60" name="{{ field }}" value="{{ c.days ?? data.days }}">
+                            <span class="qc-line" style="margin:0">{{ 'days'|trans }}</span>
+                        </div>
+                        {% if errs[field] is defined %}<div class="qc-hint" style="color:var(--danger);grid-column:1/-1">{{ errs[field]|trans }}</div>{% endif %}
+                    </div>
+                {% endfor %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                    <div>
+                        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ 'Other carriers'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Used for carriers added later.'|trans }}</div>
+                    </div>
+                    <div class="qc-hstack" style="gap:10px;flex-wrap:nowrap">
+                        <input type="number" class="qc-field-base qc-focusable" style="width:72px" min="1" max="60" name="days" value="{{ data.days }}">
+                        <span class="qc-line" style="margin:0">{{ 'days'|trans }}</span>
+                    </div>
+                    {% if errs.days is defined %}<div class="qc-hint" style="color:var(--danger);grid-column:1/-1">{{ errs.days|trans }}</div>{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'How it works'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">1</span></span><div class="qc-line"><strong>{{ 'When ordering.'|trans }}</strong> {{ 'On the confirmation page the customer agrees — or not — to receive a survey. Shown only when the customer allowed it in the cookie banner.'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">2</span></span><div class="qc-line"><strong>{{ 'After delivery.'|trans }}</strong> {{ 'Once the estimated delivery date has passed, Google e-mails the survey. The module sends nothing itself.'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">3</span></span><div class="qc-line"><strong>{{ 'Ratings.'|trans }}</strong> {{ 'They appear in Merchant Center and can show next to your ads.'|trans }}</div></div>
+        </div>
+    </div>
+</div>

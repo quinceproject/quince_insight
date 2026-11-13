@@ -1,0 +1,148 @@
+{#
+  Karta kontenera na Events -> Overview — 1:1 z prototypu (`pg==='tracking'`, karta „Container …”,
+  „Update container”, podglad zmian, pasek publikacji). Wlasciciel: agent D. Wlacza agent C:
+
+    {% include '@Modules/quince_insight/views/templates/admin/events/_container.html.twig'
+        with {card: containerCard, checks: checks} only %}
+
+  Zmienne:
+    card    — `TagManager\ContainerCard::data($idShop)`
+    checks  — opcjonalnie wiersze kontroli dzialania (agent C): [{on: bool, text: string, note: string}]
+              (teksty juz przetlumaczone), pokazywane, gdy nie trwa podglad ani publikacja
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% set c = card %}
+<script>
+window.qiGtmCard = window.qiGtmCard || function (cfg) {
+    return {
+        reviewing: false,
+        loading: false,
+        publishing: cfg.job !== null,
+        rows: [],
+        writes: 0,
+        review: function () {
+            var self = this;
+            self.loading = true;
+            QI.post(cfg.planUrl, { id_shop: cfg.idShop }).then(function (r) {
+                self.loading = false;
+                if (r.ok) {
+                    self.rows = r.plan.rows;
+                    self.writes = r.plan.writes;
+                    self.reviewing = true;
+                }
+            });
+        },
+        apply: function () {
+            var self = this;
+            self.loading = true;
+            QI.post(cfg.applyUrl, { id_shop: cfg.idShop }).then(function (r) {
+                self.loading = false;
+                if (r.ok && r.job) {
+                    self.reviewing = false;
+                    self.publishing = true;
+                    self.$nextTick(function () { QI.jobStart(r.job); });
+                }
+            });
+        }
+    };
+};
+</script>
+<div class="qc-grid" x-data="qiGtmCard({{ {
+        idShop: c.idShop,
+        job: c.job,
+        planUrl: path('quince_insight_gtm_plan'),
+        applyUrl: path('quince_insight_gtm_apply')
+     }|json_encode }})">
+    <div class="qi-head qc-set-row" style="align-items:center">
+        <div>
+            {% if c.configured %}
+                <div class="qc-set-title">{{ 'Container %id% · %shop%'|trans({'%id%': c.publicId, '%shop%': c.shopDomain ?: c.shopName}) }}</div>
+                <div class="qc-line" style="margin-top:4px">
+                    {%- if c.mode == 'own' -%}
+                        {{ 'You manage the container yourself — the module adds only the snippet and the dataLayer'|trans }}
+                    {%- elseif c.mode == 'shared' -%}
+                        {{ 'Set up from %shop% · this shop adds the snippet and uses the events of that shop'|trans({'%shop%': c.ownerName}) }}
+                    {%- elseif c.version -%}
+                        {{ 'Set up by Quince Insight · version %version% · published %date%'|trans({'%version%': c.version, '%date%': c.publishedAt}) }}{% if not c.upToDate %} · {{ 'out of date with the event settings'|trans }}{% endif %}
+                    {%- else -%}
+                        {{ 'Not published by Quince Insight yet'|trans }}
+                    {%- endif -%}
+                </div>
+            {% else %}
+                <div class="qc-set-title">{{ 'No Tag Manager container yet'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Choose or create a container in the Tag Manager step.'|trans }}</div>
+            {% endif %}
+        </div>
+        {% if c.canUpdate %}
+            <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" x-show="!reviewing && !publishing" :disabled="loading" @click="review()">
+                <span class="qc-spinner" x-show="loading" x-cloak></span>{{ 'Update container'|trans }}
+            </button>
+        {% elseif not c.configured %}
+            <a class="qc-btn qc-btn-sm qc-btn-outline" href="{{ path('quince_insight_wizard', {'step': 'gtm'}) }}">{{ 'Set up'|trans }}</a>
+        {% endif %}
+    </div>
+
+    {% if c.lastError %}
+    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="!reviewing && !publishing">
+        <div class="qc-alert qc-alert-danger">
+            {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+            <div style="flex:1">{{ c.lastError }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <template x-if="reviewing">
+    <div>
+        <div class="qc-grid-head" style="grid-template-columns:110px 1fr 70px 90px;padding:10px 18px"><div>{{ 'Type'|trans }}</div><div>{{ 'Name'|trans }}</div><div>{{ 'Count'|trans }}</div><div>{{ 'Change'|trans }}</div></div>
+        <template x-for="r in rows" :key="r.name + r.op">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:110px 1fr 70px 90px">
+                <span class="qc-line" x-text="r.type"></span>
+                <span style="font-size:var(--text-sm)" x-text="r.name"></span>
+                <span class="qc-line" x-text="r.count"></span>
+                <span><span class="qc-badge" :class="r.badge ? 'qc-badge-' + r.badge : ''" x-text="r.change"></span></span>
+            </div>
+        </template>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="writes === 0">
+            <div class="qc-line">{{ 'The container already matches the settings.'|trans }}</div>
+        </div>
+        <div class="qc-card-foot">
+            <button type="button" class="qc-btn qc-btn-text" @click="reviewing=false">{{ 'Cancel'|trans }}</button>
+            <button type="button" class="qc-btn qc-btn-primary" :disabled="loading" @click="apply()">
+                <span class="qc-spinner" x-show="loading" x-cloak></span>{{ 'Apply and publish'|trans }}
+            </button>
+        </div>
+    </div>
+    </template>
+
+    <div x-show="publishing" x-cloak
+         x-data="QI.job({{ {
+            job: c.job,
+            type: 'gtm.apply',
+            tickUrl: path('quince_insight_job_tick'),
+            cancelUrl: path('quince_insight_job_cancel'),
+            reload: true
+         }|json_encode }})">
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div>
+                <div style="display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--surface-sunken)">
+                    <div :style="'width:' + percent + '%;background:' + (state === 'error' ? 'var(--danger)' : 'var(--accent)') + ';transition:width var(--dur) var(--ease)'"></div>
+                </div>
+                <div class="qc-line" style="margin-top:8px" x-show="state !== 'error'">{{ 'Updating tags, triggers and variables…'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px;color:var(--warning)" x-show="state !== 'error' && items.some(i => i.note)" x-text="(items.find(i => i.note) || {}).note"></div>
+                <div class="qc-alert qc-alert-danger" style="margin-top:12px" x-show="state === 'error'">
+                    {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                    <div style="flex:1" x-text="error || {{ 'The task was stopped.'|trans|json_encode }}"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if checks is defined and checks %}
+    <div x-show="!reviewing && !publishing">
+        {% for row in checks %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto"><span class="qc-dot{{ row.on ? ' is-on' }}"></span><div style="font-size:var(--text-sm)">{{ row.text }}</div><span class="qc-line">{{ row.note|default('') }}</span></div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

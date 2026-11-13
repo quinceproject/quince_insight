@@ -1,0 +1,53 @@
+{# Events -> Overview — 1:1 z prototypu. Karta kontenera i kontrole: `events/_container.html.twig` (agent D). #}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-settings-list">
+    <div class="qc-cols">
+        {% include '@Modules/quince_insight/views/templates/admin/events/_container.html.twig' with {card: containerCard, checks: checks} only %}
+
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Purchases — last 7 days'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:repeat(3,1fr)">
+                    <div><span class="qc-caption">{{ 'Orders in the shop'|trans }}</span><div style="font-size:var(--text-base);font-weight:var(--weight-bold)">{{ stats.all }}</div></div>
+                    <div><span class="qc-caption">{{ 'Reached GA4'|trans }}</span><div style="font-size:var(--text-base);font-weight:var(--weight-bold);color:var(--success)">{{ stats.reached }}</div></div>
+                    <div><span class="qc-caption">{{ 'Not in GA4'|trans }}</span><div style="font-size:var(--text-base);font-weight:var(--weight-bold);color:var(--warning)">{{ stats.none }}</div></div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div>
+                        <div style="display:flex;height:14px;border-radius:99px;overflow:hidden;margin-bottom:10px;background:var(--surface-sunken)">
+                            <div style="width:{{ stats.pBoth }}%;background:var(--accent)"></div>
+                            <div style="width:{{ stats.pBrowser }}%;background:var(--fg-3)"></div>
+                            <div style="width:{{ stats.pServer }}%;background:var(--fg-2)"></div>
+                            <div style="width:{{ stats.pNone }}%;background:var(--border-strong)"></div>
+                        </div>
+                        <div class="qc-hstack" style="gap:20px;font-size:var(--text-xs);font-weight:var(--weight-semibold);color:var(--fg-2)">
+                            <span>{{ 'Browser + server %pct%%'|trans({'%pct%': stats.pBoth}) }}</span>
+                            <span>{{ 'Browser only %pct%%'|trans({'%pct%': stats.pBrowser}) }}</span>
+                            <span>{{ 'Server only %pct%%'|trans({'%pct%': stats.pServer}) }}</span>
+                            <span>{{ 'Not in GA4 %pct%%'|trans({'%pct%': stats.pNone}) }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                    <div class="qc-line">{{ 'Not sent from the server: %consent% without analytics consent, %session% without a GA session.'|trans({'%consent%': stats.noConsent, '%session%': stats.noSession}) }}</div>
+                    <a class="qc-linkbtn" href="{{ path('quince_insight_events', {'tab': 'orders', 'filter': 'blocked'}) }}">{{ 'Order log'|trans }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="qc-grid">
+        <div class="qi-head qc-set-row">
+            <div class="qc-set-title">{{ 'Events — last 24 hours'|trans }}</div>
+            <a class="qc-linkbtn" href="{{ path('quince_insight_events', {'tab': 'log'}) }}">{{ 'Event log'|trans }}</a>
+        </div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:16px 20px">
+            {% for key in allEvents %}
+                <div>
+                    <span class="qc-caption qc-mono" style="font-size:11px">{{ key }}</span>
+                    <div style="font-size:var(--text-base);font-weight:var(--weight-bold);color:{{ on[key] ? 'var(--fg-1)' : 'var(--fg-3)' }}">{{ on[key] ? (counts[key]|default(0))|number_format(0, ',', ' ') : 'Off'|trans }}</div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

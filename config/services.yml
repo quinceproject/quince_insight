@@ -1,0 +1,47 @@
+# Uslugi modulu w kontenerze Symfony panelu.
+#
+# Rejestrowany jest caly katalog `src/` (ARCHITEKTURA §3.2): nowa klasa nie wymaga
+# wpisu tutaj. Warunek, ktorego pilnuje kazdy autor klasy logiki:
+#
+#   konstruktor przyjmuje WYLACZNIE inne klasy modulu (albo nic) i jest publiczny.
+#
+# Klasa ze skalarem bez wartosci domyslnej w konstruktorze (string, int, array)
+# zatrzymuje budowe kontenera, czyli CALY panel PrestaShop, nie tylko ekran modulu.
+# Obiekty wartosci ze skalarami w konstruktorze ida do katalogu `Dto/`, wyjatki do
+# plikow `*Exception.php` — oba wzorce sa nizej wylaczone z rejestracji.
+#
+# Poza panelem (front, hooki, cron) kontenera Symfony nie ma: te same klasy buduje
+# `Quince\Insight\Core\Container::get()`.
+
+services:
+  _defaults:
+    public: true
+    autowire: true
+    autoconfigure: true
+
+  Quince\Insight\:
+    resource: '../src/'
+    exclude:
+      - '../src/Controller/'
+      - '../src/**/Dto/'
+      # Jawnie: na PrestaShop 9.0.3 sam wzorzec `**/Dto/` nie wylaczal tych katalogow
+      # i kontener padal na `Core\Dto\AttentionItem` (fala 2, agent I).
+      - '../src/Core/Dto/'
+      - '../src/Core/Google/Dto/'
+      - '../src/Service/Merchant/Dto/'
+      - '../src/Service/MerchantTools/Dto/'
+      - '../src/Service/TagManager/Dto/'
+      - '../src/**/*Exception.php'
+      # Zaslepki `index.php` z paczki wydania (w kazdym katalogu) — nie sa klasami.
+      - '../src/**/index.php'
+      - '../src/index.php'
+
+  # Kontrolery osobno, z tagiem: PrestaShop wykrywa kontrolery modulow wyrazeniem
+  # regularnym po tresci pliku i nie rozpoznaje tych, ktore dziedzicza po wlasnej
+  # klasie posredniej (`PanelController`) — deklarujemy to sami.
+  Quince\Insight\Controller\:
+    resource: '../src/Controller/'
+    exclude:
+      - '../src/Controller/index.php'
+      - '../src/Controller/**/index.php'
+    tags: ['controller.service_arguments']

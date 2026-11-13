@@ -1,0 +1,185 @@
+{#
+  Krok kreatora `gmc` — 1:1 z prototypu (cur==='gmc'). Sam blok tresci; powloke, pasek
+  krokow i przyciski Back / Skip / Continue daje kreator (agent A).
+
+  Zmienne: `gmc` (wynik `GmcStep::data()`; gdy powloka podaje dane pod `step`, tez dziala).
+  Pola formularza (zapis przez `GmcStep::save()`): account, manual_id, country, id_lang,
+  id_currency, id_source, offer_prefix, with_tax. Rejestracja i przejecie adresu — od razu,
+  trasami JSON. Krok nie wysyla zadnego produktu.
+
+  Przycisk glowny (R-09, prototyp `primaryLabel()` / `primaryDisabled()` dla `gmc`):
+  „Create draft feed” uruchamia zadanie `merchant.draft` (trasa `merchant_wizard_draft`),
+  postep pokazuje wspolny `job_progress`; po zakonczeniu „Continue” wysyla formularz.
+  Zablokowany, dopoki rejestracja dewelopera nie jest Done i witryna nie jest przejeta.
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set d = gmc|default(step.gmc|default({})) %}
+<script src="{{ asset('../modules/quince_insight/views/js/admin/merchant.js') }}"></script>
+<div x-data="QIMerchant.gmcStep({{ {
+        accounts: d.accounts|default([]),
+        account: d.account|default(''),
+        saved: d.savedAccount|default(''),
+        manualId: d.manualId|default(''),
+        registered: d.registered|default(false),
+        claim: d.claim|default('unclaimed'),
+        form: d.form|default({}),
+        idShop: d.idShop|default(0),
+        feedExists: d.feedExists|default(false),
+        draftStatus: d.draftJob ? d.draftJob.status : '',
+        accountsUrl: path('quince_insight_merchant_accounts'),
+        registerUrl: path('quince_insight_merchant_register'),
+        claimUrl: path('quince_insight_merchant_claim'),
+        draftUrl: path('quince_insight_merchant_wizard_draft'),
+        t: {create: 'Create draft feed'|trans, working: 'Working…'|trans, retry: 'Try again'|trans, next: 'Continue'|trans}
+     }|json_encode }})">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Merchant Center'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Pick the account, pass the checks, set up the first feed.'|trans }}</div>
+        </div>
+    </div>
+
+    <div class="qc-alert qc-alert-info" style="margin-bottom:20px">
+        {{ icons.icon('info', 18, 'qc-alert-icon') }}
+        <div><strong>{{ 'No products are sent to Google in this step.'|trans }}</strong>
+            {{ 'The module only connects the account and saves an empty feed as a draft. After setup you choose which products go to Google, check how they will look — and only then activate sending.'|trans }}</div>
+    </div>
+
+    {% if d.error|default('') %}
+        <div style="margin-bottom:20px">
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'danger', text: d.error} only %}
+        </div>
+    {% endif %}
+
+    <div class="qc-cols">
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Account'|trans }}</div></div>
+                {% for a in d.accounts|default([]) %}
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:{{ a.matches ? 'auto 1fr auto' : 'auto 1fr' }};cursor:pointer">
+                        <input type="radio" class="qc-radio" name="account" value="{{ a.id }}" x-model="account">
+                        <div>
+                            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ a.name }}</div>
+                            <div class="qc-sub" style="margin-top:4px">{{ 'Merchant ID %id%'|trans({'%id%': a.id}) }}{% if a.parent %} · {{ a.parent }}{% endif %}</div>
+                        </div>
+                        {% if a.matches %}<span class="qc-badge qc-badge-success">{{ 'Matches your shop'|trans }}</span>{% endif %}
+                    </label>
+                {% endfor %}
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                    <input type="radio" class="qc-radio" name="account" value="manual" x-model="account" style="margin-top:2px">
+                    <div>
+                        <div class="qc-set-title">{{ 'Enter the Merchant ID'|trans }}</div>
+                        <div style="margin-top:12px" x-show="account==='manual'">
+                            <input type="text" name="manual_id" class="qc-field-base qc-focusable qc-mono" x-model="manualId" inputmode="numeric">
+                            <div class="qc-hint">{{ 'For an account this Google user can access but which is not listed.'|trans }}</div>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'First feed'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div class="qc-fieldgrid">
+                        <div class="qc-span">
+                            <label class="qc-label">{{ 'Country'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select name="country" class="qc-field-base qc-select qc-focusable" x-model="form.country"{{ d.feedLocked|default(false) ? ' disabled' }}>
+                                    {% for iso, name in d.countries|default({}) %}<option value="{{ iso }}">{{ name }}</option>{% endfor %}
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="qc-label">{{ 'Language'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select name="id_lang" class="qc-field-base qc-select qc-focusable" x-model.number="form.id_lang"{{ d.feedLocked|default(false) ? ' disabled' }}>
+                                    {% for l in d.languages|default([]) %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="qc-label">{{ 'Currency'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select name="id_currency" class="qc-field-base qc-select qc-focusable" x-model.number="form.id_currency">
+                                    {% for c in d.currencies|default([]) %}{% if c.active %}<option value="{{ c.id }}">{{ c.iso }}</option>{% endif %}{% endfor %}
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                        </div>
+                        <div class="qc-span">
+                            <label class="qc-label">{{ 'Product ID sent as'|trans }}</label>
+                            <div class="qc-seg">
+                                <label class="qc-seg-btn"><input type="radio" name="id_source" value="id" x-model="form.id_source">{{ 'Product ID'|trans }}</label>
+                                <label class="qc-seg-btn"><input type="radio" name="id_source" value="reference" x-model="form.id_source">{{ 'Reference'|trans }}</label>
+                                <label class="qc-seg-btn"><input type="radio" name="id_source" value="ean" x-model="form.id_source">{{ 'EAN-13'|trans }}</label>
+                            </div>
+                        </div>
+                        <div class="qc-span">
+                            <label class="qc-label">{{ 'Offer ID prefix'|trans }}</label>
+                            <input type="text" name="offer_prefix" maxlength="20" class="qc-field-base qc-focusable qc-mono" x-model="form.offer_prefix">
+                            <div class="qc-hint">{{ 'Optional. Do not change it later — Google treats a new ID as a new product.'|trans }}</div>
+                        </div>
+                    </div>
+                </div>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                    <div class="qc-set-title">{{ 'Prices include tax'|trans }}</div>
+                    <span class="qc-toggle"><input type="hidden" name="with_tax" :value="form.with_tax ? 1 : 0"><input type="checkbox" x-model="form.with_tax"><span class="qc-toggle-track"></span></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Account checks'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                    <div>
+                        <div class="qc-set-title">{{ 'Developer registration'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Merchant API needs your Cloud project registered once. It starts working about 5 minutes later.'|trans }}</div>
+                    </div>
+                    <div>
+                        <span class="qc-badge qc-badge-success" x-show="registered">{{ 'Done'|trans }}</span>
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" x-show="!registered" @click="register()" :disabled="regState==='running' || !selectedId()">
+                            <span class="qc-spinner" x-show="regState==='running'"></span> {{ 'Register'|trans }}
+                        </button>
+                    </div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;align-items:start">
+                    <div>
+                        <div class="qc-set-title">{{ 'Website claim'|trans }}</div>
+                        <div class="qc-mono" style="margin-top:4px;color:var(--fg-2)">{{ d.siteUrl|default('') }}</div>
+                    </div>
+                    <div>
+                        <span class="qc-badge qc-badge-success" x-show="claim==='claimed'">{{ 'Claimed'|trans }}</span>
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" x-show="claim==='unclaimed'" @click="claimSite(false)" :disabled="claimState==='running' || !selectedId()">
+                            <span class="qc-spinner" x-show="claimState==='running'"></span> {{ 'Claim'|trans }}
+                        </button>
+                    </div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="claim==='conflict'">
+                    <div class="qc-alert qc-alert-danger">
+                        {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                        <div style="flex:1">
+                            <strong>{{ 'Claimed by another Merchant Center account.'|trans }}</strong> {{ 'Claiming it here takes it away from that account — its products stop showing on Google.'|trans }}
+                            <div style="margin-top:8px"><button type="button" class="qc-linkbtn" @click="claimSite(true)">{{ 'Claim anyway'|trans }}</button></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                    <div class="qc-set-title">{{ 'Account issues'|trans }}</div>
+                    {% if d.accountIssues|default([]) %}<span class="qc-badge qc-badge-danger">{{ d.accountIssues|length }}</span>{% else %}<span class="qc-badge qc-badge-success">{{ 'None'|trans }}</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="qc-hint">{{ 'Shipping, category mapping, rules and promotions are set in Merchant Center once setup is done.'|trans }}</div>
+        </div>
+    </div>
+
+    {# postep zadania (wspolne) — prototyp: taskLines('gmc') #}
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+        job: d.feedExists|default(false) and not (d.draftJob and d.draftJob.active) ? null : d.draftJob|default(null),
+        type: 'merchant.draft', onDone: 'qiGmcDraftDone'
+    } only %}
+</div>

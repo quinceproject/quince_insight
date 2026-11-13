@@ -1,0 +1,154 @@
+{#
+  Zakladka Mapping ekranu Merchant Center (agent M). Uklad 1:1 z prototypem (`gm.tab==='mapping'`).
+  Dane: `mt` z `MerchantTools\TabData::for('mapping', …)`; dolaczane przez ekran agenta E:
+    {% include '@Modules/quince_insight/views/templates/admin/merchant/tabs/mapping.html.twig' with tabData %}
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{# Ekran agenta E dolacza zakladke z {data: tabData}, podglad M z tabData wprost. #}
+{% set mt = mt is defined ? mt : (data.mt ?? {}) %}
+<script src="{{ asset('../modules/quince_insight/views/js/admin/merchant-tools.js') }}"></script>
+{% set identifiers = [] %}
+{% for row in mt.identifiers %}
+    {% set opts = [] %}
+    {% for key, label in row.opts %}{% set opts = opts|merge([[key, label|trans]]) %}{% endfor %}
+    {% set identifiers = identifiers|merge([{k: row.k, label: row.label, value: row.value, opts: opts}]) %}
+{% endfor %}
+{% set conditions = [] %}
+{% for c in mt.conditions|default([]) %}{% set conditions = conditions|merge([c|merge({label: c.label|trans})]) %}{% endfor %}
+{% set conditionTargets = [] %}
+{% for key, label in mt.conditionTargets|default({}) %}{% set conditionTargets = conditionTargets|merge([[key, label|trans]]) %}{% endfor %}
+{% set sources = [] %}
+{% for s in mt.sources %}
+    {% set sources = sources|merge([{key: s.key, label: (s.label starts with 'Feature: ' ? 'Feature: %name%'|trans({'%name%': s.label|slice(9)}) : 'Attribute group: %name%'|trans({'%name%': s.label|slice(17)}))}]) %}
+{% endfor %}
+<div class="qc-settings-list" x-data="QIMt.mapping({{ {
+    identifiers: identifiers,
+    conditions: conditions,
+    attrs: mt.attrs,
+    sources: sources,
+    categories: mt.categories,
+    mappedCount: mt.mappedCount,
+    categoryCount: mt.categoryCount,
+    locale: mt.locale,
+    urls: {save: path('quince_insight_merchant_mapping_save'), search: path('quince_insight_merchant_taxonomy_search')},
+    i18n: {mapped: '%mapped% of %total% mapped'|trans}
+}|json_encode }})">
+    <div class="qc-cols">
+        <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Identifiers'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Without GTIN and brand Google rejects or limits most products.'|trans }}</div>
+            </div>
+            <template x-for="row in ids" :key="row.k">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:140px 1fr">
+                    <span class="qc-set-title" x-text="row.label"></span>
+                    <div class="qc-select-wrap">
+                        <select class="qc-field-base qc-select qc-focusable" x-model="row.value" @change="saveIdentifier(row)">
+                            <template x-for="o in row.opts" :key="o[0]"><option :value="o[0]" x-text="o[1]" :selected="o[0]===row.value"></option></template>
+                        </select>
+                        {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        {# Decyzja #12: stany PrestaShop 9.2, ktorych Google nie zna. Ukryte, gdy PrestaShop ich nie ma. #}
+        {% if conditions %}
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Product condition'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Google accepts only new, used and refurbished. Choose how these shop conditions are sent.'|trans }}</div>
+            </div>
+            <template x-for="c in conditions" :key="c.state">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:140px 1fr">
+                    <span class="qc-set-title" x-text="c.label"></span>
+                    <div>
+                        <div class="qc-select-wrap">
+                            <select class="qc-field-base qc-select qc-focusable" x-model="c.value" @change="saveCondition(c)">
+                                {% for t in conditionTargets %}<option value="{{ t[0] }}">{{ t[1] }}</option>{% endfor %}
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                        <div class="qc-alert qc-alert-warning" style="margin-top:8px" x-show="c.value==='new'">
+                            {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                            <div>{{ 'Google treats a product as new only when it has never been used and is in its original, unopened packaging. Products sent as new that do not meet this can be disapproved.'|trans }}</div>
+                        </div>
+                        <div class="qc-sub" style="margin-top:4px" x-show="c.value==='skip'">{{ 'Products in this condition are not sent to Google.'|trans }}</div>
+                    </div>
+                </div>
+            </template>
+        </div>
+        {% endif %}
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Attributes'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Required for clothing and for products with variants. Detected by name — confirm or change.'|trans }}</div>
+            </div>
+            <template x-for="a in attrs" :key="a.google">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:110px 1fr auto">
+                    <span class="qc-mono" style="font-size:var(--text-sm)" x-text="a.google"></span>
+                    <div>
+                        <div class="qc-select-wrap">
+                            <select class="qc-field-base qc-select qc-focusable" x-model="a.source" @change="saveAttribute(a)">
+                                <option value="">{{ '— not sent —'|trans }}</option>
+                                <template x-for="s in sources" :key="s.key"><option :value="s.key" x-text="s.label" :selected="s.key===a.source"></option></template>
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                        <div class="qc-sub" style="margin-top:4px" x-show="a.auto && a.source">{{ 'Detected automatically'|trans }}</div>
+                    </div>
+                    <label class="qc-toggle"><input type="checkbox" x-model="a.on" :disabled="!a.source" @change="toggleAttribute(a)"><span class="qc-toggle-track"></span></label>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <div class="qc-grid">
+        <div class="qi-head qc-set-row">
+            <div>
+                <div class="qc-set-title">{{ 'Google categories'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Optional — Google assigns a category itself. Mapping helps with clothing, ads and accurate filters.'|trans }}</div>
+            </div>
+            <span class="qc-line" x-text="mappedLabel()"></span>
+        </div>
+        <div class="qc-grid-head" style="grid-template-columns:200px 1fr 80px;padding:10px 18px"><div>{{ 'Shop category'|trans }}</div><div>{{ 'Google category'|trans }}</div><div></div></div>
+        <template x-for="row in cats" :key="row.id">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:200px 1fr 80px;align-items:start">
+                <div style="min-width:0">
+                    <span class="qc-set-title" x-text="row.name"></span>
+                    <div class="qc-sub" x-show="row.parents" x-text="row.parents"></div>
+                </div>
+                <div style="position:relative;min-width:0">
+                    <template x-if="catEdit!==row.id">
+                        <span style="font-size:var(--text-sm)" :style="{color: row.googlePath ? 'var(--fg-1)' : 'var(--fg-3)'}"
+                              x-text="row.googlePath || (row.inheritedPath ? {{ 'From parent category: %path%'|trans|json_encode }}.replace('%path%', row.inheritedPath) : {{ 'Not mapped — Google decides'|trans|json_encode }})"></span>
+                    </template>
+                    <template x-if="catEdit===row.id">
+                        <div>
+                            <input type="text" class="qc-field-base qc-focusable" placeholder="{{ 'Search Google categories, e.g. washers'|trans }}" x-model="catQuery" @input="search()" x-init="$el.focus()">
+                            <div class="qc-multipick-menu" style="position:static;margin-top:4px" x-show="hits.length">
+                                <template x-for="hit in hits" :key="hit.id">
+                                    <div class="qc-multipick-row" @click="pick(row, hit)" x-text="hit.path"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+                <div style="text-align:right">
+                    <button type="button" class="qc-linkbtn" x-show="catEdit!==row.id" @click="startEdit(row)" x-text="row.googlePath ? {{ 'Change'|trans|json_encode }} : {{ 'Map'|trans|json_encode }}"></button>
+                    <button type="button" class="qc-linkbtn" x-show="catEdit===row.id" @click="catEdit=null">{{ 'Cancel'|trans }}</button>
+                </div>
+            </div>
+        </template>
+        {% if mt.categories is empty %}
+            <div class="qc-empty"><div class="qc-empty-text">{{ 'The shop has no categories yet.'|trans }}</div></div>
+        {% endif %}
+    </div>
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/listfoot.html.twig' with {
+        pagination: mt.pagination, route: mt.route, params: mt.routeParams
+    } only %}
+</div>

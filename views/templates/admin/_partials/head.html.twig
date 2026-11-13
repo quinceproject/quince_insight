@@ -1,0 +1,24 @@
+{#
+  Naglowek ekranu: tytul i opis po lewej, akcje po prawej.
+
+  Zmienne: title (angielskie zrodlo — tlumaczone tutaj), description (opcjonalny, tez
+  tlumaczony), descriptionParams (parametry tlumaczenia opisu), actions (opcjonalny
+  gotowy HTML przyciskow — zwykle z `{% set %}...{% endset %}`).
+
+  Uzycie:
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/head.html.twig' with {
+        title: 'Analytics', description: 'Traffic and sales from GA4.'
+    } only %}
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-head"{% if margin is defined %} style="margin-bottom:{{ margin }}px"{% endif %}>
+    <div>
+        <div class="qc-head-title">{{ title|trans }}</div>
+        {% if description|default('') %}
+            <div class="qc-head-desc">{{ description|trans(descriptionParams|default({})) }}</div>
+        {% endif %}
+    </div>
+    {% if actions is defined and actions|trim is not empty %}
+        <div class="qc-hstack" style="gap:8px;align-self:flex-start;flex-wrap:nowrap">{{ actions }}</div>
+    {% endif %}
+</div>

@@ -1,0 +1,355 @@
+{#
+  Zakladka What is sent — 1:1 z prototypu (gm.tab==='sent'): ustawienia feedu i filtry jako
+  karty zwijane, po prawej przyklejony licznik i zapis. Licznik liczy serwer tym samym
+  warunkiem (FeedFilters), ktorego uzywa lista Products i synchronizacja.
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set fl = feed.filters %}
+<div class="qc-cols" x-data="QIMerchant.sent({{ {
+        feed: feed.id,
+        draft: feed.draft,
+        countUrl: path('quince_insight_merchant_count'),
+        saveUrl: path('quince_insight_merchant_feed_save'),
+        deleteUrl: path('quince_insight_merchant_feed_delete'),
+        inGoogle: inGoogle|default(0),
+        deleting: deleting|default(false),
+        tickUrl: path('quince_insight_job_tick'),
+        count: counter.count,
+        total: counter.total,
+        summary: summary,
+        settings: {
+            title_template: feed.titleTemplate,
+            description_source: feed.descriptionSource,
+            offer_prefix: feed.offerPrefix,
+            id_source: feed.idSource,
+            with_tax: feed.withTax
+        },
+        filters: fl,
+        features: options.features,
+        excludedNames: options.excludedNames
+     }|json_encode }})">
+    <div class="qc-settings-list">
+
+        {# ustawienia feedu #}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('settings')" :aria-expanded="open==='settings'">
+                <span>{{ 'Feed settings'|trans }}</span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='settings'" style="padding:16px 18px">
+                <div class="qc-fieldgrid">
+                    <div>
+                        <label class="qc-label">{{ 'Title'|trans }}</label>
+                        <input type="text" class="qc-field-base qc-focusable qc-mono" maxlength="255" x-model="settings.title_template" @input="changed()">
+                        <div class="qc-hint">{{ 'Variables: {name}, {brand}, {category}, {reference}'|trans }}</div>
+                    </div>
+                    <div>
+                        <label class="qc-label">{{ 'Description from'|trans }}</label>
+                        <div class="qc-select-wrap">
+                            <select class="qc-field-base qc-select qc-focusable" x-model="settings.description_source" @change="changed()">
+                                <option value="description_short">{{ 'Short description'|trans }}</option>
+                                <option value="description">{{ 'Full description'|trans }}</option>
+                                <option value="both">{{ 'Both, combined'|trans }}</option>
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="qc-label">{{ 'Offer ID prefix'|trans }}</label>
+                        <input type="text" class="qc-field-base qc-focusable qc-mono" maxlength="20" x-model="settings.offer_prefix" @input="changed()">
+                    </div>
+                    <div>
+                        <label class="qc-label">{{ 'Product ID sent as'|trans }}</label>
+                        <div class="qc-seg">
+                            <label class="qc-seg-btn"><input type="radio" value="id" x-model="settings.id_source" @change="changed()">{{ 'Product ID'|trans }}</label>
+                            <label class="qc-seg-btn"><input type="radio" value="reference" x-model="settings.id_source" @change="changed()">{{ 'Reference'|trans }}</label>
+                            <label class="qc-seg-btn"><input type="radio" value="ean" x-model="settings.id_source" @change="changed()">{{ 'EAN-13'|trans }}</label>
+                        </div>
+                    </div>
+                </div>
+                <label class="qc-hstack" style="justify-content:space-between;cursor:pointer;flex-wrap:nowrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+                    <span class="qc-set-title">{{ 'Prices include tax'|trans }}</span>
+                    <span class="qc-toggle"><input type="checkbox" x-model="settings.with_tax" @change="changed()"><span class="qc-toggle-track"></span></span>
+                </label>
+                {# Decyzja #10: osobny krok potwierdzenia z liczba produktow, ktore znikna z Google. #}
+                <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+                    <template x-if="!confirmDelete && !deleting">
+                        <button type="button" class="qc-linkbtn qc-danger" @click="confirmDelete=true">{{ 'Delete feed'|trans }}</button>
+                    </template>
+                    <template x-if="confirmDelete && !deleting">
+                    <div class="qc-settings-list" style="gap:12px">
+                        <div class="qc-alert qc-alert-danger">
+                            {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                            <div>
+                                <strong x-text="inGoogle === 1 ? {{ '1 product will disappear from Google.'|trans|json_encode }} : (inGoogle > 0 ? {{ '%count% products will disappear from Google.'|trans|json_encode }}.replace('%count%', inGoogle) : {{ 'No products of this feed are on Google.'|trans|json_encode }})"></strong>
+                                {{ 'This cannot be undone. The module first removes the products of this feed from Google, then deletes its data source in Merchant Center, then the feed with its filters and rules here.'|trans }}
+                            </div>
+                        </div>
+                        <div class="qc-hstack" style="gap:8px">
+                            <button type="button" class="qc-btn qc-btn-sm qc-btn-primary" @click="remove()" :disabled="busy"><span class="qc-spinner" x-show="busy"></span> <span x-text="inGoogle === 1 ? {{ 'Delete feed and remove 1 product from Google'|trans|json_encode }} : (inGoogle > 0 ? {{ 'Delete feed and remove %count% products from Google'|trans|json_encode }}.replace('%count%', inGoogle) : {{ 'Delete feed'|trans|json_encode }})"></span></button>
+                            <button type="button" class="qc-btn qc-btn-sm qc-btn-text" @click="confirmDelete=false">{{ 'Cancel'|trans }}</button>
+                        </div>
+                    </div>
+                    </template>
+                    <template x-if="deleting">
+                        <div class="qc-settings-list" style="gap:12px">
+                            <div class="qc-line">{{ 'This feed is being deleted. Sending is paused; the feed disappears from the list when its products are removed from Google.'|trans }}</div>
+                            <div><button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="remove()" :disabled="busy">{{ 'Continue deleting'|trans }}</button></div>
+                        </div>
+                    </template>
+                    {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+                        job: deleteJob|default(null), type: 'merchant.feed_delete', reload: true
+                    } only %}
+                </div>
+            </div>
+        </div>
+
+        {# kategorie #}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('cats')" :aria-expanded="open==='cats'">
+                <span>{{ 'Categories'|trans }} <span class="qc-line" x-text="picked('categories') ? {{ '· %count% selected'|trans|json_encode }}.replace('%count%', picked('categories')) : {{ '· all'|trans|json_encode }}"></span></span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='cats'">
+                <div style="padding:14px 18px 0">
+                    <div class="qc-seg">
+                        <label class="qc-seg-btn"><input type="radio" value="include" x-model="filters.categories_mode" @change="changed()">{{ 'Only selected'|trans }}</label>
+                        <label class="qc-seg-btn"><input type="radio" value="exclude" x-model="filters.categories_mode" @change="changed()">{{ 'All except selected'|trans }}</label>
+                    </div>
+                </div>
+                {% for c in options.categories %}
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto;cursor:pointer{{ c.depth > 0 ? ';padding-left:' ~ (18 + 24 * c.depth) ~ 'px' }}">
+                        <span class="{{ c.depth == 0 ? 'qc-set-title' }}"{% if c.depth > 0 %} style="font-size:var(--text-sm)"{% endif %}>{{ c.name }}</span>
+                        <span class="qc-line">{{ (c.count == 1 ? '%count% product' : '%count% products')|trans({'%count%': c.count}) }}</span>
+                        <span class="qc-toggle"><input type="checkbox" :checked="has('categories', {{ c.id }})" @change="flip('categories', {{ c.id }})"><span class="qc-toggle-track"></span></span>
+                    </label>
+                {% else %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><span class="qc-line">{{ 'No categories in this shop.'|trans }}</span></div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# producenci i dostawcy #}
+        {% for grp in [{k: 'manufacturers', open: 'brands', title: 'Manufacturers', list: options.brands}, {k: 'suppliers', open: 'sups', title: 'Suppliers', list: options.suppliers}] %}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('{{ grp.open }}')" :aria-expanded="open==='{{ grp.open }}'">
+                <span><span>{{ grp.title|trans }}</span> <span class="qc-line" x-text="picked('{{ grp.k }}') ? {{ '· %count% selected'|trans|json_encode }}.replace('%count%', picked('{{ grp.k }}')) : {{ '· all'|trans|json_encode }}"></span></span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='{{ grp.open }}'">
+                <div style="padding:14px 18px 0">
+                    <div class="qc-seg">
+                        <label class="qc-seg-btn"><input type="radio" value="include" x-model="filters.{{ grp.k }}_mode" @change="changed()">{{ 'Only selected'|trans }}</label>
+                        <label class="qc-seg-btn"><input type="radio" value="exclude" x-model="filters.{{ grp.k }}_mode" @change="changed()">{{ 'All except selected'|trans }}</label>
+                    </div>
+                </div>
+                {% for b in grp.list %}
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto;cursor:pointer">
+                        <span class="qc-set-title">{{ b.name }}</span>
+                        <span class="qc-line">{{ (b.count == 1 ? '%count% product' : '%count% products')|trans({'%count%': b.count}) }}</span>
+                        <span class="qc-toggle"><input type="checkbox" :checked="has('{{ grp.k }}', {{ b.id }})" @change="flip('{{ grp.k }}', {{ b.id }})"><span class="qc-toggle-track"></span></span>
+                    </label>
+                {% else %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><span class="qc-line">{{ 'None in this shop.'|trans }}</span></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {# ceny #}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('price')" :aria-expanded="open==='price'">
+                <span>{{ 'Price'|trans }} <span class="qc-line" x-text="filters.price_ranges.length ? {{ '· %count% ranges'|trans|json_encode }}.replace('%count%', filters.price_ranges.length) : {{ '· any'|trans|json_encode }}"></span></span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='price'" style="padding:16px 18px">
+                {# Decyzja #11a: przy aktywnych regulach Pricing cena w Google rozni sie od porownywanej. #}
+                {% if pricingRules|default(0) > 0 %}
+                <div style="margin-bottom:14px">
+                    {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+                        level: 'warning',
+                        text: 'Active pricing rules in this feed: %count%. Google gets the price after these rules, so it can differ from the price the ranges compare.',
+                        params: {'%count%': pricingRules},
+                        action: {label: 'Rules', url: path('quince_insight_merchant', {'feed': feed.id, 'tab': 'rules'})}
+                    } only %}
+                </div>
+                {% endif %}
+                <div class="qc-seg" style="margin-bottom:14px">
+                    <label class="qc-seg-btn"><input type="radio" value="include" x-model="filters.price_mode" @change="changed()">{{ 'Only these ranges'|trans }}</label>
+                    <label class="qc-seg-btn"><input type="radio" value="exclude" x-model="filters.price_mode" @change="changed()">{{ 'Except these ranges'|trans }}</label>
+                </div>
+                {# Decyzja #11: zakresy dotycza ceny wysylanej do Google (waluta feedu, podatek wg feedu, po promocjach). #}
+                <label class="qc-label">{{ 'Price sent to Google, %currency%'|trans({'%currency%': feed.currencyIso}) }}</label>
+                <div class="qc-settings-list" style="gap:10px">
+                    <template x-for="(r, i) in filters.price_ranges" :key="i">
+                        <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                            <input type="number" min="0" step="0.01" class="qc-field-base qc-focusable" placeholder="{{ 'Min'|trans }}" x-model="r.min" @input="changed()">
+                            <span class="qc-line">–</span>
+                            <input type="number" min="0" step="0.01" class="qc-field-base qc-focusable" placeholder="{{ 'Max'|trans }}" x-model="r.max" @input="changed()">
+                            <span class="qc-line">{{ feed.currencyIso }}</span>
+                            <button type="button" class="qc-icon-btn qc-danger" @click="filters.price_ranges.splice(i, 1); changed()">{{ icons.icon('x', 14) }}</button>
+                        </div>
+                    </template>
+                    <div><button type="button" class="qc-linkbtn" @click="filters.price_ranges.push({min: '', max: ''}); changed()">{{ '+ Add range'|trans }}</button></div>
+                </div>
+                {# Decyzja #11, #11a: jedno zdanie — cena dla Google (waluta, podatek, rabaty) sprzed regul Pricing. #}
+                <div class="qc-hint" x-text="settings.with_tax ? {{ 'Compared with the price Google gets (in %currency%, with tax, after discounts), before the pricing rules from Rules → Pricing.'|trans({'%currency%': feed.currencyIso})|json_encode }} : {{ 'Compared with the price Google gets (in %currency%, without tax, after discounts), before the pricing rules from Rules → Pricing.'|trans({'%currency%': feed.currencyIso})|json_encode }}"></div>
+            </div>
+        </div>
+
+        {# stan i wymagania #}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('stock')" :aria-expanded="open==='stock'">
+                <span>{{ 'Stock and requirements'|trans }}</span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='stock'">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;border-top:0">
+                    <div>
+                        <div class="qc-set-title">{{ 'Skip out-of-stock products'|trans }}</div>
+                        <div class="qc-hstack" style="gap:8px;margin-top:8px" x-show="filters.skip_out_of_stock">
+                            <span class="qc-line">{{ 'Minimum stock'|trans }}</span>
+                            <input type="number" min="1" class="qc-field-base qc-field-sm qc-focusable" style="width:80px" x-model.number="filters.min_stock" @input="changed()">
+                        </div>
+                    </div>
+                    <label class="qc-toggle"><input type="checkbox" x-model="filters.skip_out_of_stock" @change="changed()"><span class="qc-toggle-track"></span></label>
+                </div>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                    <div class="qc-set-title">{{ 'Require EAN / GTIN'|trans }}</div>
+                    <span class="qc-toggle"><input type="checkbox" x-model="filters.require_ean" @change="changed()"><span class="qc-toggle-track"></span></span>
+                </label>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                    <div class="qc-set-title">{{ 'Require an image'|trans }}</div>
+                    <span class="qc-toggle"><input type="checkbox" x-model="filters.require_image" @change="changed()"><span class="qc-toggle-track"></span></span>
+                </label>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div>
+                        <div class="qc-caption">{{ 'Condition'|trans }}</div>
+                        <div class="qc-hstack" style="gap:20px">
+                            {% for k in ['new', 'used', 'refurbished'] %}
+                                <label class="qc-toggle"><input type="checkbox" :checked="filters.condition.includes('{{ k }}')" @change="flipValue('condition', '{{ k }}')"><span class="qc-toggle-track"></span><span class="qc-toggle-text">{{ k|capitalize|trans }}</span></label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div>
+                        <div class="qc-caption">{{ 'Visibility in the shop'|trans }}</div>
+                        <div class="qc-hstack" style="gap:20px">
+                            {% for v in [['both', 'Everywhere'], ['catalog', 'Catalog only'], ['search', 'Search only'], ['none', 'Nowhere']] %}
+                                <label class="qc-toggle"><input type="checkbox" :checked="filters.visibility.includes('{{ v[0] }}')" @change="flipValue('visibility', '{{ v[0] }}')"><span class="qc-toggle-track"></span><span class="qc-toggle-text">{{ v[1]|trans }}</span></label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# cechy #}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('feat')" :aria-expanded="open==='feat'">
+                <span>{{ 'Features'|trans }} <span class="qc-line" x-text="filters.features.length ? {{ '· %count% filters'|trans|json_encode }}.replace('%count%', filters.features.length) : {{ '· any'|trans|json_encode }}"></span></span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='feat'" style="padding:16px 18px">
+                <div class="qc-seg" style="margin-bottom:14px">
+                    <label class="qc-seg-btn"><input type="radio" value="include" x-model="filters.features_mode" @change="changed()">{{ 'Only matching'|trans }}</label>
+                    <label class="qc-seg-btn"><input type="radio" value="exclude" x-model="filters.features_mode" @change="changed()">{{ 'Except matching'|trans }}</label>
+                </div>
+                <div class="qc-settings-list" style="gap:10px">
+                    <template x-for="(f, i) in filters.features" :key="i">
+                        <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                            <div class="qc-select-wrap" style="flex:1">
+                                <select class="qc-field-base qc-select qc-focusable" x-model.number="f.id_feature" @change="f.id_feature_value = firstValue(f.id_feature); changed()">
+                                    <template x-for="ft in features" :key="ft.id"><option :value="ft.id" x-text="ft.name" :selected="ft.id === f.id_feature"></option></template>
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                            <div class="qc-select-wrap" style="flex:1">
+                                <select class="qc-field-base qc-select qc-focusable" x-model.number="f.id_feature_value" @change="changed()">
+                                    <template x-for="v in valuesOf(f.id_feature)" :key="v.id"><option :value="v.id" x-text="v.name" :selected="v.id === f.id_feature_value"></option></template>
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                            <button type="button" class="qc-icon-btn qc-danger" @click="filters.features.splice(i, 1); changed()">{{ icons.icon('x', 14) }}</button>
+                        </div>
+                    </template>
+                    <div>
+                        <button type="button" class="qc-linkbtn" @click="addFeature()" x-show="features.length">{{ '+ Add filter'|trans }}</button>
+                        <span class="qc-line" x-show="!features.length">{{ 'No features in this shop.'|trans }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# tagi #}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('tags')" :aria-expanded="open==='tags'">
+                <span>{{ 'Tags'|trans }} <span class="qc-line" x-text="(filters.tags_include.length || filters.tags_exclude.length) ? {{ '· %in% in, %out% out'|trans|json_encode }}.replace('%in%', filters.tags_include.length).replace('%out%', filters.tags_exclude.length) : {{ '· any'|trans|json_encode }}"></span></span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='tags'" style="padding:16px 18px">
+                <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap;margin-bottom:14px">
+                    <input type="text" class="qc-field-base qc-focusable" list="qi-tags" maxlength="32" placeholder="{{ 'Tag…'|trans }}" x-model="tagQuery">
+                    <datalist id="qi-tags">{% for t in options.tags %}<option value="{{ t }}"></option>{% endfor %}</datalist>
+                    <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="addTag('tags_include')">{{ 'Include'|trans }}</button>
+                    <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="addTag('tags_exclude')">{{ 'Exclude'|trans }}</button>
+                </div>
+                <div class="qc-fieldgrid">
+                    {% for list in [['tags_include', 'Only with these tags'], ['tags_exclude', 'Without these tags']] %}
+                    <div>
+                        <div class="qc-caption">{{ list[1]|trans }}</div>
+                        <div class="qc-pill-list">
+                            <template x-for="(t, i) in filters.{{ list[0] }}" :key="t"><span class="qc-pill"><span x-text="t"></span><button type="button" class="qc-pill-remove" @click="filters.{{ list[0] }}.splice(i, 1); changed()">{{ icons.icon('x', 10) }}</button></span></template>
+                            <span class="qc-line" x-show="!filters.{{ list[0] }}.length">{{ 'None'|trans }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# wykluczone produkty #}
+        <div class="qc-grid" style="overflow:visible">
+            <button type="button" class="qc-fold-head" style="padding:16px 18px" @click="toggleOpen('excl')" :aria-expanded="open==='excl'">
+                <span>{{ 'Excluded products'|trans }} <span class="qc-line" x-text="filters.excluded_products.length ? '· ' + filters.excluded_products.length : {{ '· none'|trans|json_encode }}"></span></span>
+                {{ icons.icon('chevronDown', 14, 'qc-fold-mark') }}
+            </button>
+            <div x-show="open==='excl'" style="padding:16px 18px">
+                <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap;margin-bottom:14px">
+                    <input type="number" min="1" class="qc-field-base qc-focusable" placeholder="{{ 'Product ID'|trans }}" x-model="excludeId" @keydown.enter.prevent="addExcluded()">
+                    <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="addExcluded()">{{ 'Exclude'|trans }}</button>
+                </div>
+                <div class="qc-pill-list">
+                    <template x-for="(id, i) in filters.excluded_products" :key="id">
+                        <span class="qc-pill"><span x-text="'#' + id + (excludedNames[id] ? ' ' + excludedNames[id] : '')"></span><button type="button" class="qc-pill-remove" @click="filters.excluded_products.splice(i, 1); changed()">{{ icons.icon('x', 10) }}</button></span>
+                    </template>
+                    <span class="qc-line" x-show="!filters.excluded_products.length">{{ 'None. You can also exclude products from the Products tab.'|trans }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# prawa: licznik i zapis #}
+    <div class="qc-grid" style="position:sticky;top:calc(var(--qc-top-offset) + 20px)">
+        <div class="qi-head">
+            <div class="qc-caption">{{ 'Products in this feed'|trans }}</div>
+            <div style="font-size:var(--text-xl);font-weight:var(--weight-extrabold)"><span x-text="count"></span> <span class="qc-line" style="font-size:var(--text-sm)" x-text="{{ 'of %total%'|trans|json_encode }}.replace('%total%', total)"></span></div>
+        </div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div>
+                <div class="qc-caption">{{ 'Active filters'|trans }}</div>
+                <template x-for="f in summary" :key="f"><div style="font-size:var(--text-sm);padding:3px 0" x-text="f"></div></template>
+                <div class="qc-line" x-show="!summary.length">{{ 'None — every active product is included.'|trans }}</div>
+            </div>
+        </div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+            <span class="qc-line" x-text="saved ? {{ 'All changes saved'|trans|json_encode }} : {{ 'Unsaved changes'|trans|json_encode }}"></span>
+            <button type="button" class="qc-btn qc-btn-sm qc-btn-primary" :disabled="saved || busy" @click="save()">{{ 'Save'|trans }}</button>
+        </div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="!draft && !saved">
+            <div class="qc-line">{{ 'Saving sends the change to Google: products that stop matching are removed from Google, new ones are added.'|trans }}</div>
+        </div>
+    </div>
+</div>

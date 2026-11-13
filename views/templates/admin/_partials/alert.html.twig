@@ -1,0 +1,29 @@
+{#
+  Pasek komunikatu wewnatrz ekranu (nie toast): info | success | warning | danger.
+
+  Zmienne: level, text (angielskie zrodlo, tlumaczone tutaj), params (parametry
+  tlumaczenia), items (opcjonalna lista punktow — zwykly tekst, juz przetlumaczony),
+  action (opcjonalnie {label, url} — odnosnik "napraw to tutaj").
+
+  Uzycie:
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+        level: 'warning', text: 'The "%name%" cron has not run for a while.', params: {'%name%': 'Orders'}
+    } only %}
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set qiLevel = level|default('info') == 'error' ? 'danger' : level|default('info') %}
+<div class="qc-alert qc-alert-{{ qiLevel }}"{% if qiLevel == 'danger' %} role="alert"{% endif %}>
+    {{ icons.message(qiLevel, 18, 'qc-alert-icon') }}
+    <div style="flex:1">
+        {{ text|trans(params|default({})) }}
+        {% if items|default([]) %}
+            <ul class="qc-alert-list">
+                {% for item in items %}<li>{{ item }}</li>{% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+    {% if action is defined and action %}
+        <a class="qc-linkbtn" href="{{ action.url }}">{{ action.label|trans }}</a>
+    {% endif %}
+</div>

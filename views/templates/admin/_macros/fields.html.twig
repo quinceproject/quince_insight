@@ -1,0 +1,39 @@
+{#
+  Pola formularzy — makra wspolne.
+
+  Uzycie:  {% import '@Modules/quince_insight/views/templates/admin/_macros/fields.html.twig' as fields %}
+           {{ fields.toggle('log_on', settings.logOn, 'Keep the event log'|trans) }}
+           {{ fields.toggle('remarketing', ads.remarketing, '', 'sm', 'form.remarketing') }}   <- z x-model
+
+  Kontroler czyta przelacznik przez `$request->request->getBoolean('log_on')`.
+#}
+
+{# Przelacznik. Ukryte pole `0` przed polem wyboru: odznaczone pole nie jest wysylane
+   wcale, wiec bez niego stan "wylaczone" nie dotarlby do kontrolera. #}
+{% macro toggle(name, checked, text = '', size = '', bind = null) %}
+    <label class="qc-toggle{{ size ? ' qc-toggle-' ~ size }}">
+        <input type="hidden" name="{{ name }}" value="0">
+        <input type="checkbox" name="{{ name }}" value="1"{{ checked ? ' checked' }}
+               {% if bind %}x-model="{{ bind }}"{% endif %}>
+        <span class="qc-toggle-track"></span>
+        {% if text %}<span class="qc-toggle-text">{{ text }}</span>{% endif %}
+    </label>
+{% endmacro %}
+
+{# Ukryte pole z tokenem CSRF formularza. Identyfikator tokenu = nazwa trasy akcji. #}
+{% macro csrf(route) %}
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token(route) }}">
+{% endmacro %}
+
+{# Lista wyboru w stylu Quince. `options`: wartosc => etykieta (juz przetlumaczona). #}
+{% macro select(name, value, options, attrs = '') %}
+    {% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as ico %}
+    <div class="qc-select-wrap">
+        <select name="{{ name }}" class="qc-field-base qc-select qc-focusable" {{ attrs|raw }}>
+            {% for key, label in options %}
+                <option value="{{ key }}"{{ key ~ '' == value ~ '' ? ' selected' }}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        {{ ico.icon('chevronDown', 14, 'qc-select-chevron') }}
+    </div>
+{% endmacro %}

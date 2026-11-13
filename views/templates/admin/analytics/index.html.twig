@@ -1,0 +1,76 @@
+{#
+  Ekran Analytics — 1:1 z prototypu (`pg==='ga4'`). Zakladki ?tab=, okres ?period= (7 / 28 / 90).
+  Porownanie z poprzednim okresem i miara wykresu przelaczane w przegladarce (jak w prototypie).
+  Dodane wzgledem prototypu (PLAN §4 B): "Refresh" z data aktualizacji i komunikaty o progach
+  i probkowaniu z metadanych odpowiedzi GA4.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_scripts %}
+    <script src="{{ asset('../modules/quince_insight/views/js/admin/analytics.js') ~ '?v=' ~ (app.debug ? 'now'|date('U') : qcVersion|default('0.1.0')) }}" defer></script>
+{% endblock %}
+
+{% block quince_body %}
+{% set tpl = '@Modules/quince_insight/views/templates/admin/analytics/' %}
+{% set partials = '@Modules/quince_insight/views/templates/admin/_partials/' %}
+<div class="qc-screen" x-data="{ compare: true }">
+    <div class="qc-head" style="margin-bottom:20px">
+        <div>
+            <div class="qc-head-title">{{ 'Analytics'|trans }}</div>
+            {% if configured %}
+                <div class="qc-head-desc">{{ 'Traffic and sales from GA4 — property %name% · %id%.'|trans({'%name%': propertyName, '%id%': measurementId}) }}</div>
+            {% else %}
+                <div class="qc-head-desc">{{ 'Traffic and sales from GA4.'|trans }}</div>
+            {% endif %}
+        </div>
+        {% if configured %}
+        <div class="qc-hstack" style="gap:12px;align-self:flex-start;flex-wrap:nowrap">
+            <label class="qc-toggle"><input type="checkbox" x-model="compare"><span class="qc-toggle-track"></span><span class="qc-toggle-text">{{ 'Compare with previous period'|trans }}</span></label>
+            <div class="qc-seg">
+                {% for p in periods %}
+                    <a href="{{ path('quince_insight_analytics', {'tab': tabs.current, 'period': p}) }}" class="qc-seg-btn{{ p == period ? ' is-active' : '' }}"{% if p == period %} aria-current="page"{% endif %}>{{ '%days% days'|trans({'%days%': p}) }}</a>
+                {% endfor %}
+            </div>
+            <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" x-data="qiAnalyticsRefresh({{ path('quince_insight_analytics_refresh')|json_encode }})" @click="run()" :disabled="busy">
+                <span class="qc-spinner" x-show="busy" x-cloak></span>{{ icons.icon('refresh', 14) }} {{ 'Refresh'|trans }}
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if not configured %}
+        <div class="qc-grid">
+            {% include partials ~ 'empty.html.twig' with {
+                icon: 'eye', title: 'Analytics is not set up yet',
+                text: 'Pick a GA4 property and a web data stream for this shop — or let the module create them.',
+                action: {label: 'Set up Analytics', url: path('quince_insight_wizard', {'step': 'ga4'})}
+            } only %}
+        </div>
+    {% else %}
+        {% include partials ~ 'tabs.html.twig' with {tabs: tabs, route: 'quince_insight_analytics', params: {'period': period}} only %}
+
+        {% if report is not null %}
+            {% include tpl ~ '_notices.html.twig' with {report: report} only %}
+        {% endif %}
+
+        {% if tabs.current == 'property' %}
+            {% include tpl ~ 'tabs/property.html.twig' %}
+        {% elseif report.failed %}
+            {# Google nie odpowiedzial i nie ma ostatnich danych — komunikat jest wyzej. #}
+        {% elseif report.empty %}
+            <div class="qc-grid">
+                {% include partials ~ 'empty.html.twig' with {
+                    icon: 'eye', title: 'No data yet',
+                    text: 'GA4 has no data for these %days% days yet. New properties usually show the first results 24–48 hours after the first visits.',
+                    params: {'%days%': period}
+                } only %}
+            </div>
+        {% else %}
+            {% include tpl ~ 'tabs/' ~ tabs.current ~ '.html.twig' %}
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

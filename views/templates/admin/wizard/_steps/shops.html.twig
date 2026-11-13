@@ -1,0 +1,76 @@
+{#
+  Krok Shops (tylko multistore) — 1:1 z prototypu `cur==='shops'`.
+  Dodatki z ARCHITEKTURA §6: sklepy juz skonfigurowane oznaczone, sklepy bez HTTPS
+  z ostrzezeniem, sklep na innym projekcie Google Cloud nie dolacza do przejscia.
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/fields.html.twig' as fields %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set ss = shopsStep %}
+<form id="qi-shops-form" method="post" action="{{ path('quince_insight_wizard_shops') }}" x-data="{ mode: {{ ss.mode|json_encode }} }">
+    {{ fields.csrf('quince_insight_wizard_shops') }}
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Which shops are you setting up?'|trans }}</div>
+            <div class="qc-head-desc">{{ 'This PrestaShop runs %count% shops. Each shop keeps its own settings.'|trans({'%count%': ss.shops|length}) }}</div>
+        </div>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer;border-top:0">
+                <input type="radio" class="qc-radio" name="mode" value="one" x-model="mode">
+                <div>
+                    <div class="qc-set-title">{{ 'Only this shop'|trans }}</div>
+                    {% if ss.allShops %}
+                        <div class="qc-line" style="margin-top:4px">{{ 'Pick the shop in the list below. The other shops stay untouched until you set them up.'|trans }}</div>
+                    {% else %}
+                        <div class="qc-line" style="margin-top:4px">{{ '%name% · %url%. The other shops stay untouched until you set them up.'|trans({'%name%': ss.thisShop.name, '%url%': ss.thisShop.url|replace({'https://': '', 'http://': ''})|trim('/')}) }}</div>
+                    {% endif %}
+                </div>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer">
+                <input type="radio" class="qc-radio" name="mode" value="several" x-model="mode">
+                <div>
+                    <div class="qc-set-title">{{ 'Several shops at once'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'One Google sign-in, then you pick the accounts for each shop in every step.'|trans }}</div>
+                </div>
+            </label>
+            {# Kontekst "wszystkie sklepy" (decyzja #23): lista takze przy "Only this shop" — wybor jednego sklepu. #}
+            <div x-show="{{ ss.allShops ? 'true' : "mode==='several'" }}"{{ ss.allShops ? '' : ' x-cloak' }}>
+                {% for s in ss.shops %}
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto;cursor:pointer">
+                        <div>
+                            <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ s.name }}</div>
+                            <div class="qc-mono" style="font-size:var(--text-xs);color:var(--fg-2);margin-top:4px">{{ s.url }}</div>
+                        </div>
+                        <span class="qc-hstack" style="gap:6px">
+                            {% if s.current %}<span class="qc-badge">{{ 'This shop'|trans }}</span>{% endif %}
+                            {% if s.done and not s.current %}<span class="qc-badge qc-badge-success">{{ 'Already set up'|trans }}</span>{% endif %}
+                            {% if not s.https %}<span class="qc-badge qc-badge-warning" title="{{ 'Google connects only to shops on HTTPS.'|trans }}">{{ 'No HTTPS'|trans }}</span>{% endif %}
+                            {% if not s.pickable %}<span class="qc-badge" title="{{ 'This shop uses another Google Cloud project. Set it up separately.'|trans }}">{{ 'Other Google project'|trans }}</span>{% endif %}
+                        </span>
+                        {% if ss.allShops %}
+                            <input type="radio" class="qc-radio" name="one" value="{{ s.id }}" x-show="mode==='one'">
+                        {% endif %}
+                        <span class="qc-toggle"{{ ss.allShops ? ' x-show="mode===\'several\'" x-cloak' : '' }}>
+                            {% if s.current %}
+                                <input type="checkbox" checked disabled>
+                            {% else %}
+                                <input type="hidden" name="pick[{{ s.id }}]" value="0">
+                                <input type="checkbox" name="pick[{{ s.id }}]" value="1"{{ s.picked ? ' checked' }}{{ not s.pickable ? ' disabled' }}>
+                            {% endif %}
+                            <span class="qc-toggle-track"></span>
+                        </span>
+                    </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'How it works'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">1</span></span><div class="qc-line">{{ 'Every shop has its own accounts, events, feeds and sitemap.'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">2</span></span><div class="qc-line">{{ 'The Google Cloud project and the Google sign-in are shared. A shop that needs a different project is set up separately.'|trans }}</div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">3</span></span><div class="qc-line">{{ 'A shop that is not set up gets nothing from the module — no code on its pages, nothing sent to Google.'|trans }}</div></div>
+        </div>
+    </div>
+</form>

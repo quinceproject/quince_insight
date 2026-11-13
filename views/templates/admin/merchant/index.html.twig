@@ -1,0 +1,76 @@
+{#
+  Ekran Merchant Center — 1:1 z prototypu (index.html, pg==='gmc'): naglowek z wyborem feedu
+  i "Add feed", zakladki GMC_TABS, widok Add feed (zakladki schowane).
+  Zakladki Overview / Products / What is sent i widok Add feed — agent E; Mapping … Reports —
+  agent M (merchant/tabs/<klucz>.html.twig + MerchantTools\TabData).
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_scripts %}
+    <script src="{{ asset(qiAssets ~ 'js/admin/merchant.js') ~ qcVer }}" defer></script>
+{% endblock %}
+
+{% block quince_body %}
+<div class="qc-screen">
+    {% set qiActions %}
+        {% if view != 'new' and feed %}
+            <div class="qc-select-wrap" style="width:240px">
+                <select class="qc-field-base qc-select qc-focusable" style="width:100%" aria-label="{{ 'Feed'|trans }}" onchange="window.location.href = this.value">
+                    {% for f in feedList %}
+                        <option value="{{ path('quince_insight_merchant', {'feed': f.id, 'tab': tab|default('overview')}) }}"{{ f.id == feed.id ? ' selected' }}>{{ f.label }}</option>
+                    {% endfor %}
+                </select>
+                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+            </div>
+            <a class="qc-btn qc-btn-outline" href="{{ path('quince_insight_merchant', {'tab': 'new', 'feed': feed.id}) }}">{{ icons.icon('plus', 14) }} {{ 'Add feed'|trans }}</a>
+        {% endif %}
+    {% endset %}
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/head.html.twig' with {
+        title: title, description: description, actions: qiActions, margin: 20
+    } only %}
+
+    {% if accountId == '' %}
+        <div class="qc-grid">
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {
+                icon: 'box', title: 'No Merchant Center account yet',
+                text: 'Choose the Merchant Center account in the setup wizard first.',
+                action: {label: 'Open the Merchant Center step', url: path('quince_insight_wizard', {'step': 'gmc'})}
+            } only %}
+        </div>
+    {% elseif view == 'new' %}
+        {% include '@Modules/quince_insight/views/templates/admin/merchant/new_feed.html.twig' %}
+    {% elseif feed %}
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/tabs.html.twig' with {
+            tabs: tabs, route: 'quince_insight_merchant', params: {'feed': feed.id}
+        } only %}
+
+        {% if feedDeleting|default(false) and tab != 'sent' %}
+            <div style="margin-bottom:20px">
+                {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+                    level: 'warning', text: 'This feed is being deleted. Its products are being removed from Google — see What is sent.'
+                } only %}
+            </div>
+        {% endif %}
+
+        {% if tab == 'overview' %}
+            {% include '@Modules/quince_insight/views/templates/admin/merchant/overview.html.twig' %}
+        {% elseif tab == 'products' %}
+            {% include '@Modules/quince_insight/views/templates/admin/merchant/products.html.twig' %}
+        {% elseif tab == 'sent' %}
+            {% include '@Modules/quince_insight/views/templates/admin/merchant/sent.html.twig' %}
+        {% elseif tabTemplate %}
+            {# Dane M wprost (`with tabData`, jak w szablonach M) i pod `data` — oba sposoby dzialaja. #}
+            {% include tabTemplate with tabData|merge({feed: feed, data: tabData, idShop: idShop}) %}
+        {% else %}
+            <div class="qc-grid">
+                {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {
+                    icon: 'puzzle', text: 'This tab is not available yet.'
+                } only %}
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,165 @@
+{#
+  Kreator — powloka 1:1 z prototypu (`view==='wizard'`): pasek krokow zamiast bocznego
+  paska, tresc kroku w `qc-screen` 1100 px, przyklejony pasek akcji Back / Skip / Continue.
+
+  Kroki rdzenia: `wizard/_steps/<key>.html.twig` (agent A).
+  Kroki uslug:   `wizard/steps/<key>.html.twig` (wlasciciel uslugi).
+
+  ---- Kontrakt dla szablonu kroku uslugi -----------------------------------------
+  Szablon jest dolaczany WEWNATRZ formularza `<form id="qi-wizard-form" method="post">`
+  (nie wstawiac wlasnego <form>). Pola z atrybutem `name` trafiaja do
+  `WizardStep::save([$sklep], $pola)` po "Continue" i do `save($wszystkieSklepy, $pola)`
+  po "Use the same for all shops". Nazwy zaczynajace sie od `_` sa zarezerwowane.
+  Zmienne:
+    data       — wynik `WizardStep::data([formShop])`; jego klucze sa tez osobnymi zmiennymi,
+                 a gdy nie ma wsrod nich klucza kroku — calosc takze pod kluczem kroku (`gsc`, ...)
+    stepKey    — klucz kroku
+    formShop   — id sklepu, ktorego dotyczy formularz (przelacznik sklepu)
+    wizard     — stan powloki (wizard.runShops, wizard.single, wizard.formShopUrl, ...)
+    errors     — bledy z ostatniego `save()` (pole => komunikat)
+  JS (`views/js/admin/wizard.js`):
+    QIWizard.primary({label, disabled, onClick})  — zmienia przycisk glowny paska akcji
+        (np. "Set up Analytics" uruchamiajacy zadanie); onClick zamiast wyslania formularza
+    QIWizard.primary(null)                        — przywraca "Continue"
+    QIWizard.submit()                             — wysyla formularz kroku ("Continue")
+    QIWizard.shop                                 — id sklepu formularza
+  ----------------------------------------------------------------------------------
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/fields.html.twig' as fields %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% set qiAssetsWiz = '../modules/quince_insight/views/' %}
+{% set qcVerWiz = '?v=' ~ (app.debug ? 'now'|date('U') : qcVersion|default('0.1.0')) %}
+
+{% block quince_scripts %}
+    <script src="{{ asset(qiAssetsWiz ~ 'js/admin/wizard.js') ~ qcVerWiz }}" defer></script>
+    <script src="{{ asset(qiAssetsWiz ~ 'js/admin/cron.js') ~ qcVerWiz }}" defer></script>
+{% endblock %}
+
+{% block quince_nav_current %}{{ (wizard.steps|filter(s => s.current)|first).label|default('Setup')|trans }}{% endblock %}
+
+{% block quince_sidenav %}
+<nav class="qc-sidenav qi-steps" id="qc-sidenav" aria-label="{{ 'Setup'|trans }}">
+    <div class="qc-sidenav-section">{{ wizard.label|trans }}</div>
+    {% for s in wizard.steps %}
+        {% set href = s.canGo ? path('quince_insight_wizard', {'step': s.key}) : '#' %}
+        <a href="{{ href }}" class="qc-nav-item{{ s.current ? ' qc-active' }}{{ (not s.current and not s.canGo and not wizard.single) ? ' qc-disabled' }}{{ (wizard.single and not s.current) ? ' qi-static' }}{{ s.lineIn ? ' qi-prev-done' }}{{ s.lineOut ? ' qi-line-done' }}"
+           {% if not s.canGo and not s.current %}aria-disabled="true" tabindex="-1"{% endif %}>
+            <span class="qc-step{{ s.state == 'done' ? ' qc-done' }}{{ s.current ? ' qc-current' }}">
+                <span class="qc-step-num">{% if s.active %}{{ s.num }}{% else %}–{% endif %}</span>
+            </span>
+            <span class="qc-nav-label">{{ s.label|trans }}</span>
+            {% if s.state == 'off' %}<span class="qc-nav-soon">{{ 'Off'|trans }}</span>{% endif %}
+            {% if s.state == 'skipped' %}<span class="qc-nav-soon">{{ 'Skipped'|trans }}</span>{% endif %}
+        </a>
+    {% endfor %}
+</nav>
+{% endblock %}
+
+{% block quince_body %}
+{% set step = wizard.current %}
+<div class="qc-screen" style="max-width:1100px">
+
+    {% if step == 'welcome' %}
+        {% include '@Modules/quince_insight/views/templates/admin/wizard/_steps/welcome.html.twig' %}
+    {% elseif step == 'shops' %}
+        {% include '@Modules/quince_insight/views/templates/admin/wizard/_steps/shops.html.twig' %}
+    {% else %}
+    <form id="qi-wizard-form" method="post" action="{{ path('quince_insight_wizard_save') }}">
+        {{ fields.csrf('quince_insight_wizard_save') }}
+        <input type="hidden" name="_step" value="{{ step }}">
+        <input type="hidden" name="_shop" value="{{ wizard.formShop }}">
+
+        {% if step == 'services' %}
+            {% include '@Modules/quince_insight/views/templates/admin/wizard/_steps/services.html.twig' %}
+        {% elseif step == 'cloud' %}
+            {% include '@Modules/quince_insight/views/templates/admin/wizard/_steps/cloud.html.twig' %}
+        {% elseif step == 'connect' %}
+            {% include '@Modules/quince_insight/views/templates/admin/wizard/_steps/connect.html.twig' %}
+        {% else %}
+            {# ---------- sklep, ktorego dotyczy krok (kilka sklepow naraz) ---------- #}
+            {% if wizard.switcher %}
+                {% include '@Modules/quince_insight/views/templates/admin/wizard/_shop_switcher.html.twig' %}
+            {% endif %}
+
+            {% if step == 'summary' %}
+                {% include '@Modules/quince_insight/views/templates/admin/wizard/_steps/summary.html.twig' %}
+            {% else %}
+                {# ---------- brak uprawnienia (wspolne dla krokow uslug) ---------- #}
+                {% if wizard.needsGrant %}
+                    <div class="qc-alert qc-alert-danger" style="margin-bottom:18px">
+                        {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                        <div style="flex:1">
+                            <strong>{{ 'Permission not granted.'|trans }}</strong> {{ 'Google did not allow the module to use this service.'|trans }}
+                            <div style="margin-top:8px"><button type="submit" form="qi-grant-form" class="qc-linkbtn">{{ 'Grant permission'|trans }}</button></div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if not serviceStepData.ok %}
+                    <div class="qc-alert qc-alert-danger" style="margin-bottom:18px">
+                        {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                        <div style="flex:1">{{ 'This step could not load its data: %error%'|trans({'%error%': serviceStepData.error}) }}</div>
+                    </div>
+                {% endif %}
+
+                {# Dane kroku: calosc pod `data`, klucze wyniku `data()` jako zmienne szablonu
+                   (np. `GmcStep::data()` = {gmc: {...}} -> `gmc`), a gdy wynik nie ma klucza kroku —
+                   calosc takze pod kluczem kroku (`gsc`, ...). Szablony uslug uzywaja roznych wariantow. #}
+                {% set qiSd = serviceStepData.data %}
+                {% set qiVars = (qiSd[step] is defined ? {} : {(step): qiSd})|merge(qiSd)|merge({data: qiSd}) %}
+                {% include '@Modules/quince_insight/views/templates/admin/wizard/steps/' ~ step ~ '.html.twig' with qiVars %}
+            {% endif %}
+        {% endif %}
+    </form>
+    {% endif %}
+
+    {# Formularze akcji poza formularzem kroku (HTML nie pozwala zagniezdzac formularzy). #}
+    <form id="qi-skip-form" method="post" action="{{ path('quince_insight_wizard_skip') }}" hidden>
+        {{ fields.csrf('quince_insight_wizard_skip') }}
+        <input type="hidden" name="_step" value="{{ step }}">
+    </form>
+    <form id="qi-finish-form" method="post" action="{{ path('quince_insight_wizard_finish') }}" hidden>
+        {{ fields.csrf('quince_insight_wizard_finish') }}
+    </form>
+    <form id="qi-grant-form" method="post" action="{{ path('quince_insight_connect_start') }}" hidden>
+        {{ fields.csrf('quince_insight_connect_start') }}
+        <input type="hidden" name="return" value="{{ step }}">
+    </form>
+</div>
+{% endblock %}
+
+{% block quince_actionbar %}
+{% set step = wizard.current %}
+{% if step != 'welcome' %}
+    {% set primaryLabel = wizard.single ? 'Save and return to panel' : (step == 'summary' ? 'Open dashboard' : 'Continue') %}
+    {% set primaryDisabled = (step == 'connect' and not connectStep.connected) or wizard.needsGrant %}
+    <div class="qc-actionbar" style="max-width:1100px"
+         x-data="QIWizardBar({{ {
+             label: primaryLabel|trans,
+             disabled: primaryDisabled,
+             form: step == 'summary' ? 'qi-finish-form' : (step == 'shops' ? 'qi-shops-form' : 'qi-wizard-form'),
+             shop: wizard.formShop,
+             step: step
+         }|json_encode }})">
+        <div class="qc-actionbar-info">{{ wizard.single ? 'Changing one service'|trans : (wizard.allShops ? 'Step %n%'|trans({'%n%': wizard.number}) : 'Step %n% of %total%'|trans({'%n%': wizard.number, '%total%': wizard.total})) }}</div>
+        {% if wizard.single %}
+            <a class="qc-btn qc-btn-text" href="{{ path(wizard.cancelRoute) }}">{{ 'Cancel'|trans }}</a>
+        {% elseif wizard.prev %}
+            <a class="qc-btn qc-btn-text" href="{{ path('quince_insight_wizard', {'step': wizard.prev}) }}">{{ 'Back'|trans }}</a>
+        {% elseif wizard.adding and step == 'services' %}
+            <a class="qc-btn qc-btn-text" href="{{ path('quince_insight_settings') }}">{{ 'Back'|trans }}</a>
+        {% endif %}
+        {% if wizard.optional %}
+            <button type="submit" form="qi-skip-form" class="qc-btn qc-btn-outline">{{ 'Skip'|trans }}</button>
+        {% endif %}
+        <button type="button" class="qc-btn qc-btn-primary" :disabled="disabled || busy" @click="press()">
+            <span class="qc-spinner" x-show="busy" x-cloak></span>
+            <span x-text="label">{{ primaryLabel|trans }}</span>
+        </button>
+    </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,89 @@
+{# Events -> Consent — 1:1 z prototypu. Zmiany zapisuja sie od razu. #}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+<div class="qc-cols" x-data="qiEvents.consent({{ {source: consentSource, cookie: consentCookie, defaults: consentDefaults, wait: consentWait, map: consentMap}|json_encode }})">
+    <div class="qc-settings-list">
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Where consent comes from'|trans }}</div></div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto;align-items:start;cursor:pointer">
+                <input type="radio" class="qc-radio" value="qcmp" x-model="source" @change="setSource()" style="margin-top:2px">
+                <div>
+                    <div class="qc-set-title">Quince CMP</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Signals and categories are read from Quince CMP. Nothing to map.'|trans }}</div>
+                </div>
+                {% if qcmpDetected %}
+                    <span class="qc-badge qc-badge-success">{{ 'Detected'|trans }}</span>
+                {% else %}
+                    <span class="qc-badge qc-badge-warning">{{ 'Not installed'|trans }}</span>
+                {% endif %}
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                <input type="radio" class="qc-radio" value="other" x-model="source" @change="setSource()" style="margin-top:2px">
+                <div style="min-width:0">
+                    <div class="qc-set-title">{{ 'Another consent tool'|trans }}</div>
+                    <template x-if="source==='other'">
+                    <div style="margin-top:12px">
+                        <label class="qc-label">{{ 'Consent cookie name'|trans }}</label>
+                        <input type="text" class="qc-field-base qc-focusable qc-mono" x-model="cookie" @change="qiEvents.save('consentCookie', cookie)">
+                        <div class="qc-hint">{{ 'Map its categories on the right.'|trans }}</div>
+                    </div>
+                    </template>
+                </div>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;align-items:start;cursor:pointer">
+                <input type="radio" class="qc-radio" value="none" x-model="source" @change="setSource()" style="margin-top:2px">
+                <div>
+                    <div class="qc-set-title">{{ 'No consent tool — use defaults'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Signals stay as set below for every visitor.'|trans }}</div>
+                </div>
+            </label>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Before the visitor decides'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Default state of each signal. In the EU and EEA keep them denied.'|trans }}</div>
+            </div>
+            {% for k in consentDefaults|keys %}
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto;cursor:pointer">
+                    <span class="qc-mono" style="font-size:var(--text-sm)">{{ k }}</span>
+                    <span class="qc-line" x-text="defaults[{{ k|json_encode }}]==='granted' ? {{ 'granted'|trans|json_encode }} : {{ 'denied'|trans|json_encode }}"></span>
+                    <span class="qc-toggle"><input type="checkbox" :checked="defaults[{{ k|json_encode }}]==='granted'" @change="setDefault({{ k|json_encode }}, $event.target.checked)"><span class="qc-toggle-track"></span></span>
+                </label>
+            {% endfor %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                <div>
+                    <div class="qc-set-title">{{ 'Wait for the consent tool'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Tags wait this long for the banner\'s answer before using the defaults.'|trans }}</div>
+                </div>
+                <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                    <input type="number" class="qc-field-base qc-field-sm qc-focusable" style="width:80px" min="0" max="10000" x-model.number="wait" @change="qiEvents.save('consentWait', wait)">
+                    <span class="qc-line">ms</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="qc-grid" :class="{'qc-disabled-area is-off': source!=='other'}">
+        <div class="qi-head">
+            <div class="qc-set-title">{{ 'Category → Consent Mode signal'|trans }}</div>
+            <div class="qc-line" style="margin-top:4px" x-text="source==='other' ? {{ 'Which category of your consent tool grants each signal.'|trans|json_encode }} : (source==='qcmp' ? {{ 'Quince CMP sends the signals itself.'|trans|json_encode }} : {{ 'Not used without a consent tool.'|trans|json_encode }})"></div>
+        </div>
+        {% for k in consentMap|keys %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 180px">
+                <span class="qc-mono" style="font-size:var(--text-sm)">{{ k }}</span>
+                <div class="qc-select-wrap">
+                    <select class="qc-field-base qc-select qc-focusable" x-model="map[{{ k|json_encode }}]" @change="setMap({{ k|json_encode }})">
+                        <option value="analytics">analytics</option>
+                        <option value="marketing">marketing</option>
+                        <option value="preferences">preferences</option>
+                    </select>
+                    {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                </div>
+            </div>
+        {% endfor %}
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div class="qc-line">{{ 'Server-side purchases need the analytics category; customer data for enhanced conversions also needs marketing.'|trans }}</div>
+        </div>
+    </div>
+</div>

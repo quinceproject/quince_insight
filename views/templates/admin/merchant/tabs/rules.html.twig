@@ -1,0 +1,183 @@
+{#
+  Zakladka Rules ekranu Merchant Center (agent M). Uklad 1:1 z prototypem (`gm.tab==='rules'`).
+  Pola i operatory z `MerchantTools\RuleDefinitions` (1:1 z FeedForge).
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{# Ekran agenta E dolacza zakladke z {data: tabData}, podglad M z tabData wprost. #}
+{% set mt = mt is defined ? mt : (data.mt ?? {}) %}
+<script src="{{ asset('../modules/quince_insight/views/js/admin/merchant-tools.js') }}"></script>
+{% set types = [] %}
+{% for t in mt.types %}{% set types = types|merge([{key: t.key, label: t.label|trans, empty: t.empty|trans}]) %}{% endfor %}
+{% set fields = {} %}
+{% for key, f in mt.fields %}{% set fields = fields|merge({(key): f|merge({label: f.label|trans})}) %}{% endfor %}
+{% set ops = {} %}
+{% for key, label in mt.ops %}{% set ops = ops|merge({(key): label|trans}) %}{% endfor %}
+{% set pricing = {} %}
+{% for key, label in mt.pricingActions %}{% set pricing = pricing|merge({(key): label|trans}) %}{% endfor %}
+{% set targets = {} %}
+{% for key, label in mt.identTargets %}{% set targets = targets|merge({(key): label|trans}) %}{% endfor %}
+<div class="qc-settings-list" x-data="QIMt.rules({{ {
+    feedId: mt.feedId,
+    feeds: mt.feeds|default([]),
+    rules: mt.rules,
+    types: types,
+    fields: fields,
+    ops: ops,
+    pricingActions: pricing,
+    identTargets: targets,
+    urls: {save: path('quince_insight_merchant_rule_save'), remove: path('quince_insight_merchant_rule_delete')},
+    i18n: {allFeeds: 'All feeds'|trans, condition: 'condition'|trans, conditions: 'conditions'|trans, priority: 'priority'|trans, excluded: 'excluded from the feed'|trans}
+}|json_encode }})">
+    <div class="qc-set-row" style="align-items:center">
+        <div class="qc-seg">
+            <template x-for="t in RULE_TYPES" :key="t.key">
+                <button type="button" class="qc-seg-btn" :class="{'is-active': ruleType===t.key}" @click="ruleType=t.key; editRule=null" x-text="typeLabel(t)"></button>
+            </template>
+        </div>
+        <button type="button" class="qc-btn qc-btn-primary" @click="newRule()" x-show="!editRule">{{ icons.icon('plus', 14) }} {{ 'Add rule'|trans }}</button>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <template x-for="r in rulesOf(ruleType)" :key="r.id">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto" :style="{borderTop: '1px solid var(--border)'}">
+                    <div>
+                        <div class="qc-hstack" style="gap:8px">
+                            <span class="qc-set-title" x-text="r.name"></span>
+                            <span class="qc-badge" :class="r.on ? 'qc-badge-success' : ''" x-text="r.on ? {{ 'Active'|trans|json_encode }} : {{ 'Inactive'|trans|json_encode }}"></span>
+                            <span class="qc-badge" x-text="scopeLabel(r)"></span>
+                        </div>
+                        <div class="qc-line" style="margin-top:4px" x-text="summary(r)"></div>
+                    </div>
+                    <button type="button" class="qc-linkbtn" @click="edit(r)">{{ 'Edit'|trans }}</button>
+                    <button type="button" class="qc-icon-btn qc-danger" @click="remove(r)" aria-label="{{ 'Delete'|trans }}">{{ icons.icon('trash', 14) }}</button>
+                </div>
+            </template>
+            <template x-if="!rulesOf(ruleType).length">
+                <div class="qc-empty"><div class="qc-empty-text" x-text="emptyText()"></div></div>
+            </template>
+        </div>
+
+        <div>
+        <template x-if="editRule">
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title" x-text="isExisting() ? {{ 'Edit rule'|trans|json_encode }} : {{ 'New rule'|trans|json_encode }}"></div></div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 100px">
+                <div>
+                    <label class="qc-label">{{ 'Name'|trans }}</label>
+                    <input type="text" maxlength="120" class="qc-field-base qc-focusable" x-model="editRule.name" placeholder="{{ 'e.g. Exclude products without images'|trans }}">
+                </div>
+                <div>
+                    <label class="qc-label">{{ 'Priority'|trans }}</label>
+                    <input type="number" min="0" max="100" class="qc-field-base qc-focusable" x-model.number="editRule.priority">
+                </div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div>
+                    <label class="qc-label">{{ 'Applies to'|trans }}</label>
+                    <div class="qc-select-wrap">
+                        <select class="qc-field-base qc-select qc-focusable" x-model.number="editRule.feed">
+                            <option value="0" :selected="editRule.feed===0">{{ 'All feeds'|trans }}</option>
+                            <template x-for="f in feeds" :key="f.id"><option :value="f.id" x-text="f.name" :selected="f.id===editRule.feed"></option></template>
+                        </select>
+                        {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                    </div>
+                </div>
+            </div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div class="qc-set-title">{{ 'Active'|trans }}</div>
+                <span class="qc-toggle"><input type="checkbox" x-model="editRule.on"><span class="qc-toggle-track"></span></span>
+            </label>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div class="qc-caption" style="margin:0">{{ 'Conditions — all must be met'|trans }}</div>
+                <template x-for="(c, i) in editRule.conds" :key="i">
+                    <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                        <div class="qc-select-wrap" style="flex:1.2">
+                            <select class="qc-field-base qc-select qc-focusable" x-model="c.field" @change="fieldChanged(c)">
+                                <template x-for="k in Object.keys(RULE_FIELDS)" :key="k"><option :value="k" x-text="RULE_FIELDS[k].label" :selected="k===c.field"></option></template>
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                        <div class="qc-select-wrap" style="flex:1.2">
+                            <select class="qc-field-base qc-select qc-focusable" x-model="c.op">
+                                <template x-for="o in opsFor(c)" :key="o"><option :value="o" x-text="RULE_OPS[o]" :selected="o===c.op"></option></template>
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                        <template x-if="needsValue(c) && RULE_FIELDS[c.field].input!=='select'">
+                            <input :type="RULE_FIELDS[c.field].input" class="qc-field-base qc-focusable" style="flex:1" x-model="c.value" :placeholder="['in','not_in'].includes(c.op) ? '3, 5, 12' : {{ 'Value'|trans|json_encode }}">
+                        </template>
+                        <template x-if="needsValue(c) && RULE_FIELDS[c.field].input==='select'">
+                            <div class="qc-select-wrap" style="flex:1">
+                                <select class="qc-field-base qc-select qc-focusable" x-model="c.value" x-init="if (!c.value) c.value = RULE_FIELDS[c.field].options[0]">
+                                    <template x-for="o in RULE_FIELDS[c.field].options" :key="o"><option :value="o" x-text="o" :selected="o===c.value"></option></template>
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                        </template>
+                        <template x-if="!needsValue(c)"><span style="flex:1"></span></template>
+                        <button type="button" class="qc-icon-btn qc-danger" @click="editRule.conds.splice(i, 1)" aria-label="{{ 'Remove'|trans }}">{{ icons.icon('x', 14) }}</button>
+                    </div>
+                </template>
+                <div><button type="button" class="qc-linkbtn" @click="editRule.conds.push({field:'price', op:'gt', value:''})">{{ '+ Add condition'|trans }}</button></div>
+            </div>
+
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div class="qc-caption" style="margin:0">{{ 'Then'|trans }}</div>
+                <template x-if="editRule.type==='exclusion'">
+                    <div class="qc-line">{{ 'Matching products are not sent to Google.'|trans }}</div>
+                </template>
+                <template x-if="editRule.type==='pricing'">
+                    <div>
+                    <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                        <div class="qc-select-wrap" style="flex:1">
+                            <select class="qc-field-base qc-select qc-focusable" x-model="editRule.action">
+                                <template x-for="k in Object.keys(PRICING_ACTIONS)" :key="k"><option :value="k" x-text="PRICING_ACTIONS[k]" :selected="k===editRule.action"></option></template>
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                        <input type="number" step="0.01" class="qc-field-base qc-focusable" style="width:120px" placeholder="{{ 'Value'|trans }}" x-model="editRule.value">
+                    </div>
+                    {# Decyzja #11a: przedzialy "Price" w What is sent porownuja cene przed tymi regulami. #}
+                    <div class="qc-hint">{{ 'A price change here does not affect the “Price” ranges in What is sent.'|trans }}</div>
+                    </div>
+                </template>
+                <template x-if="editRule.type==='custom_label'">
+                    <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                        <div class="qc-select-wrap" style="width:180px">
+                            <select class="qc-field-base qc-select qc-focusable" x-model.number="editRule.label">
+                                <template x-for="n in [0,1,2,3,4]" :key="n"><option :value="n" x-text="'custom_label_' + n" :selected="n===editRule.label"></option></template>
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                        <input type="text" maxlength="100" class="qc-field-base qc-focusable" style="flex:1" placeholder="{{ 'e.g. bestseller, promo, new'|trans }}" x-model="editRule.labelValue">
+                    </div>
+                </template>
+                <template x-if="editRule.type==='identifier'">
+                    <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                        <div class="qc-select-wrap" style="flex:1">
+                            <select class="qc-field-base qc-select qc-focusable" x-model="editRule.target">
+                                <template x-for="k in Object.keys(IDENT_TARGETS)" :key="k"><option :value="k" x-text="IDENT_TARGETS[k]" :selected="k===editRule.target"></option></template>
+                            </select>
+                            {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                        </div>
+                        <input type="text" class="qc-field-base qc-focusable" style="flex:1" :placeholder="editRule.target==='identifier_exists' ? {{ 'yes / no'|trans|json_encode }} : {{ 'Fixed value'|trans|json_encode }}" x-model="editRule.value">
+                    </div>
+                </template>
+            </div>
+            <div class="qc-card-foot">
+                <button type="button" class="qc-btn qc-btn-text" @click="editRule=null">{{ 'Cancel'|trans }}</button>
+                <button type="button" class="qc-btn qc-btn-primary" @click="save()" :disabled="saving"><span class="qc-spinner" x-show="saving"></span> {{ 'Save rule'|trans }}</button>
+            </div>
+        </div>
+        </template>
+        <template x-if="!editRule">
+            <div class="qc-grid" style="padding:16px 18px">
+                <div class="qc-set-title">{{ 'How rules work'|trans }}</div>
+                <div class="qc-line" style="margin-top:6px">{{ 'Every condition in a rule must match. Rules with higher priority run first. Rules change only what is sent to Google — products in the shop stay as they are.'|trans }}</div>
+            </div>
+        </template>
+        </div>
+    </div>
+</div>

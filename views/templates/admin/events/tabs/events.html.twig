@@ -1,0 +1,92 @@
+{#
+  Events -> Event list — 1:1 z prototypu. Zmiany zapisuja sie od razu.
+  Decyzja #5: „Key event” tylko dodaje w GA4; zdarzenie juz kluczowe w GA4 pokazuje stan z GA4
+  i jest zablokowane (modul nigdy nie usuwa zdarzen kluczowych — usuwa sie je w GA4).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% set keyMap = {} %}
+{% for key in allEvents %}{% set keyMap = keyMap|merge({(key): key in keyEvents}) %}{% endfor %}
+<div class="qc-cols">
+    <div class="qc-settings-list" x-data="qiEvents.list({{ {on: on, keys: keyMap, locked: keyMap}|json_encode }})">
+        <div class="qc-alert qc-alert-info">
+            {{ icons.message('info', 18, 'qc-alert-icon') }}
+            <div>{{ 'The switch on the right turns sending on or off.'|trans }} <strong>{{ 'Key event'|trans }}</strong> {{ 'tells GA4 to count the event as a conversion — Google Ads can then import it. Usually only'|trans }} <span class="qc-mono">purchase</span>.</div>
+        </div>
+        {% if sharedFrom %}
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+                level: 'info', text: 'This shop shares the Tag Manager container of %shop% — the events switched on there are used here too.', params: {'%shop%': sharedFrom}
+            } only %}
+        {% endif %}
+        {% if keyError %}
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'warning', text: keyError} only %}
+        {% else %}
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+                level: 'info', text: 'Key events already set in GA4 are locked here. The module only adds key events and never removes them — remove a key event in GA4.'
+            } only %}
+        {% endif %}
+        {% for g in groups %}
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ g.label|trans }}</div></div>
+                {% for e in g.events %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto auto">
+                        <div>
+                            <div class="qc-mono" style="font-size:var(--text-sm)">{{ e.key }}</div>
+                            <div class="qc-sub" style="margin-top:4px">{{ e.where|trans }}</div>
+                        </div>
+                        <span class="qc-badge">{{ e.source|trans }}</span>
+                        <label class="qc-toggle" :class="{'qc-disabled-area is-off': !locked[{{ e.key|json_encode }}] && (!on[{{ e.key|json_encode }}]{{ keyError ? ' || true' }})}" :title="locked[{{ e.key|json_encode }}] ? {{ 'Already a key event in GA4 — remove it in GA4.'|trans|json_encode }} : ''">
+                            <input type="checkbox" x-model="keys[{{ e.key|json_encode }}]" :disabled="locked[{{ e.key|json_encode }}] || !on[{{ e.key|json_encode }}]{{ keyError ? ' || true' }}" @change="key({{ e.key|json_encode }})"><span class="qc-toggle-track"></span>
+                            <span class="qc-toggle-text" style="font-size:var(--text-xs)">{{ 'Key event'|trans }}</span>
+                        </label>
+                        <label class="qc-toggle"><input type="checkbox" x-model="on[{{ e.key|json_encode }}]" @change="toggle({{ e.key|json_encode }})"><span class="qc-toggle-track"></span></label>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="qc-settings-list" style="position:sticky;top:calc(var(--qc-top-offset) + 20px)" x-data="{ productId: {{ productId|json_encode }}, priceTax: {{ priceTax ? 'true' : 'false' }}, categoryPath: {{ categoryPath ? 'true' : 'false' }}, userData: {{ userData|json_encode }} }">
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Product data in events'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Used by every event with products, so the same product looks the same in GA4, Google Ads and Merchant Center.'|trans }}</div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <div>
+                    <label class="qc-label">{{ 'Product ID sent as'|trans }}</label>
+                    <div class="qc-seg">
+                        <label class="qc-seg-btn"><input type="radio" value="id" x-model="productId" @change="qiEvents.save('productId', productId)">{{ 'Product ID'|trans }}</label>
+                        <label class="qc-seg-btn"><input type="radio" value="reference" x-model="productId" @change="qiEvents.save('productId', productId)">{{ 'Reference'|trans }}</label>
+                        <label class="qc-seg-btn"><input type="radio" value="ean" x-model="productId" @change="qiEvents.save('productId', productId)">{{ 'EAN-13'|trans }}</label>
+                    </div>
+                    <div class="qc-hint">{{ 'Use the same as in Merchant Center, so Google Ads can match them. The order number never changes with this setting.'|trans }}</div>
+                </div>
+            </div>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div class="qc-set-title">{{ 'Prices include tax'|trans }}</div>
+                <span class="qc-toggle"><input type="checkbox" x-model="priceTax" @change="qiEvents.save('priceTax', priceTax)"><span class="qc-toggle-track"></span></span>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div>
+                    <div class="qc-set-title">{{ 'Full category path'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'item_category to item_category5, e.g. Fasteners › Bolts.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="categoryPath" @change="qiEvents.save('categoryPath', categoryPath)"><span class="qc-toggle-track"></span></span>
+            </label>
+        </div>
+
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ 'Customer data'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'E-mail, phone and address for enhanced conversions. Hashed before it leaves the shop from the server.'|trans }}</div>
+            </div>
+            {% for o in [['never', 'Never'], ['purchase', 'Only with the purchase'], ['always', 'On every page for signed-in customers']] %}
+                <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer">
+                    <input type="radio" class="qc-radio" value="{{ o[0] }}" x-model="userData" @change="qiEvents.save('userData', userData)">
+                    <div class="qc-set-title">{{ o[1]|trans }}</div>
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+</div>

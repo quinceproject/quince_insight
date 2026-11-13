@@ -1,0 +1,29 @@
+{#
+  Sklep, ktorego dotyczy krok (kilka sklepow naraz) — 1:1 z prototypu: karta "Setting up"
+  z adresem sklepu, segmenty z nazwami sklepow, "Use the same for all shops".
+  Segment sklepu bez zapisanego wyboru ma kropke ostrzezenia (ARCHITEKTURA §6).
+  Przycisk "Use the same…" wysyla formularz kroku z `_same=1` — powloka wola wtedy
+  `WizardStep::save()` z lista wszystkich sklepow przejscia.
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-grid" style="margin-bottom:18px">
+    <div class="qi-head qc-set-row" style="align-items:center;gap:16px;flex-wrap:wrap">
+        <div>
+            <div class="qc-set-title">{{ wizard.current == 'summary' ? 'Shop'|trans : 'Setting up'|trans }}</div>
+            <div class="qc-mono" style="font-size:var(--text-xs);color:var(--fg-2);margin-top:4px">{{ wizard.formShopUrl }}</div>
+        </div>
+        <div class="qc-hstack" style="gap:14px">
+            <div class="qc-seg">
+                {% for s in wizard.runShops %}
+                    <a class="qc-seg-btn{{ s.id == wizard.formShop ? ' is-active' }}" style="text-decoration:none"
+                       href="{{ path('quince_insight_wizard', {'step': wizard.current, 'shop': s.id}) }}">
+                        {% if wizard.current != 'summary' and s.state not in ['done', 'skipped'] %}<span class="qc-dot" style="background:var(--warning);margin-right:6px" title="{{ 'No choice saved for this shop yet'|trans }}"></span>{% endif %}{{ s.name }}
+                    </a>
+                {% endfor %}
+            </div>
+            {% if wizard.same %}
+                <button type="submit" name="_same" value="1" class="qc-linkbtn">{{ 'Use the same for all shops'|trans }}</button>
+            {% endif %}
+        </div>
+    </div>
+</div>

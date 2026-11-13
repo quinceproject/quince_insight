@@ -1,0 +1,70 @@
+{# Zakladka Overview — 1:1 z prototypu (`an.tab==='overview'`). Dane: `report` z Reports::overview(). #}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set metricTitles = {
+    'sessions': 'Per day — sessions'|trans,
+    'users': 'Per day — users'|trans,
+    'revenue': 'Per day — revenue'|trans,
+    'purchases': 'Per day — purchases'|trans
+} %}
+<div class="qc-settings-list">
+    <div class="qc-grid">
+        <div class="qc-grid-row qi-row" style="grid-template-columns:repeat(6,1fr);border-top:0">
+            {% for m in report.metrics %}
+                <div>
+                    <span class="qc-caption">{{ m.label|trans }}</span>
+                    <div style="font-size:var(--text-base);font-weight:var(--weight-bold)"{% if m.noData|default(false) %} title="{{ 'Purchase is not a key event in GA4, so GA4 has no purchase conversion rate.'|trans }}"{% endif %}>{{ m.noData|default(false) ? m.value|trans : m.value }}</div>
+                    <span class="qc-badge{{ m.up is same as(true) ? ' qc-badge-success' : (m.up is same as(false) ? ' qc-badge-danger' : '') }}" x-show="compare">{{ m.delta }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="qc-grid" x-data="{ metric: 'sessions', series: {{ report.daily.series|json_encode }}, titles: {{ metricTitles|json_encode }} }">
+        <div class="qi-head qc-set-row" style="align-items:center">
+            <div class="qc-set-title" x-text="titles[metric]">{{ metricTitles.sessions }}</div>
+            <div class="qc-seg">
+                {% for k in [['sessions', 'Sessions'], ['users', 'Users'], ['revenue', 'Revenue'], ['purchases', 'Purchases']] %}
+                    <button type="button" class="qc-seg-btn" :class="{'is-active': metric === {{ k[0]|json_encode }}}" @click="metric = {{ k[0]|json_encode }}">{{ k[1]|trans }}</button>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div style="display:flex;align-items:flex-end;gap:3px;height:140px">
+                <template x-for="(v, i) in series[metric]" :key="i">
+                    <div style="flex:1;border-radius:3px 3px 0 0;background:var(--accent)" :style="{height: v + '%'}"></div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <div class="qi-head qc-set-row">
+                <div class="qc-set-title">{{ 'Top channels'|trans }}</div>
+                <a class="qc-linkbtn" href="{{ path('quince_insight_analytics', {'tab': 'traffic', 'period': period}) }}">{{ 'All traffic'|trans }}</a>
+            </div>
+            {% for c in report.channels %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr 120px auto">
+                    <span class="qc-set-title">{{ c.name }}</span>
+                    <div style="display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--surface-sunken)"><div style="width:{{ c.width }}%;background:var(--accent)"></div></div>
+                    <span class="qc-line" style="width:90px;text-align:right">{{ '%count% sessions'|trans({'%count%': c.sessions}) }}</span>
+                </div>
+            {% else %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><span class="qc-line">{{ 'No sessions in this period.'|trans }}</span></div>
+            {% endfor %}
+        </div>
+        <div class="qc-grid">
+            <div class="qi-head qc-set-row">
+                <div class="qc-set-title">{{ 'Top products by revenue'|trans }}</div>
+            </div>
+            {% for p in report.products %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                    <span class="qc-set-title">{{ p.name }}</span>
+                    <span class="qc-line">{{ p.revenue }}</span>
+                </div>
+            {% else %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr"><span class="qc-line">{{ 'No product sales in this period.'|trans }}</span></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>

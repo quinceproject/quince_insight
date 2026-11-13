@@ -1,0 +1,179 @@
+{#
+  Page speed — 1:1 z prototypu (`prototypy/index.html`, `pg==='psi'`).
+
+  Dane: PageSpeedScreen::data() — field (CrUX per urzadzenie), pages (lista stron z wynikami
+  obu urzadzen), last (czas ostatniego testu), schedule, hasKey, job (trwajace sprawdzenie).
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_scripts %}
+    <script src="{{ asset('../modules/quince_insight/views/js/admin/psi.js') ~ '?v=' ~ qcVersion|default('0') }}" defer></script>
+{% endblock %}
+
+{% block quince_body %}
+{% set qiCfg = {
+    field: field,
+    pages: pages,
+    last: last,
+    schedule: schedule,
+    maxPages: maxPages,
+    job: job,
+    urls: {
+        run: path('quince_insight_psi_run'),
+        add: path('quince_insight_psi_page_save'),
+        remove: path('quince_insight_psi_page_delete'),
+        save: path('quince_insight_psi_save')
+    },
+    t: {good: 'Good'|trans, ni: 'Needs improvement'|trans, poor: 'Poor'|trans}
+} %}
+<div class="qc-screen" x-data="qiPsi({{ qiCfg|json_encode }})" @qi-psi-stopped.window="ps.running = false">
+    <div class="qc-head" style="margin-bottom:20px">
+        <div>
+            <div class="qc-head-title">{{ 'Page speed'|trans }}</div>
+            <div class="qc-head-desc">{{ 'How fast the shop is for real visitors, and what slows down its key pages.'|trans }}</div>
+        </div>
+        <div class="qc-hstack" style="gap:8px;align-self:flex-start;flex-wrap:nowrap">
+            <div class="qc-seg">
+                <button type="button" class="qc-seg-btn" :class="{'is-active': ps.device==='mobile'}" @click="ps.device='mobile'">{{ 'Mobile'|trans }}</button>
+                <button type="button" class="qc-seg-btn" :class="{'is-active': ps.device==='desktop'}" @click="ps.device='desktop'">{{ 'Desktop'|trans }}</button>
+            </div>
+            <button type="button" class="qc-btn qc-btn-outline" @click="psRun()" :disabled="ps.running || {{ hasKey ? 'false' : 'true' }}"><span class="qc-spinner" x-show="ps.running" x-cloak></span> {{ 'Run check now'|trans }}</button>
+        </div>
+    </div>
+
+    {% if not hasKey %}
+        <div style="margin-bottom:20px">
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {
+                level: 'warning',
+                text: 'Page speed needs a Google API key. Add it in the Google Cloud project step of the wizard, and enable the PageSpeed Insights API and the Chrome UX Report API in your Google Cloud project.',
+                action: {label: 'Add the API key', url: path('quince_insight_wizard', {'step': 'cloud'})}
+            } only %}
+        </div>
+    {% endif %}
+
+    <div class="qc-settings-list">
+        {# dane prawdziwych uzytkownikow #}
+        <div class="qc-grid">
+            <div class="qi-head qc-set-row">
+                <div>
+                    <div class="qc-set-title">{{ 'Real visitors — last 28 days'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Chrome UX Report for the whole domain %domain%. These are the numbers Google uses for page experience.'|trans({'%domain%': domain}) }}</div>
+                </div>
+                <span class="qc-badge" x-show="fieldNow.state === 'ok'" x-cloak :class="fieldNow.passed ? 'qc-badge-success' : 'qc-badge-warning'"
+                      x-text="fieldNow.passed ? {{ 'Core Web Vitals passed'|trans|json_encode }} : {{ 'Core Web Vitals not passed'|trans|json_encode }}"></span>
+            </div>
+            <div class="qc-grid-row qi-row qi-stack-mobile" style="grid-template-columns:repeat(3,1fr);gap:24px;align-items:start" x-show="fieldNow.state === 'ok'">
+                <template x-for="m in fieldNow.metrics" :key="m.key">
+                    <div>
+                        <div class="qc-set-row" style="align-items:center">
+                            <span class="qc-caption" style="margin:0" x-text="m.key + ' · ' + m.name"></span>
+                        </div>
+                        <div class="qc-hstack" style="gap:8px;margin:6px 0 10px">
+                            <span style="font-size:var(--text-xl);font-weight:var(--weight-extrabold)" x-text="m.value"></span>
+                            <span class="qc-badge" :class="psRatingClass(m.rating)" x-text="psRatingLabel(m.rating)"></span>
+                        </div>
+                        <div style="display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--surface-sunken)">
+                            <div :style="{width: m.dist[0] + '%', background: 'var(--success)'}"></div>
+                            <div :style="{width: m.dist[1] + '%', background: 'var(--warning)'}"></div>
+                            <div :style="{width: m.dist[2] + '%', background: 'var(--danger)'}"></div>
+                        </div>
+                        <div class="qc-sub" style="margin-top:6px" x-text="m.dist[0] + {{ '% good · '|trans|json_encode }} + m.dist[1] + {{ '% needs improvement · '|trans|json_encode }} + m.dist[2] + {{ '% poor'|trans|json_encode }}"></div>
+                        <div class="qc-sub" style="margin-top:2px" x-text="m.threshold + (m.prev ? {{ ' · last check '|trans|json_encode }} + m.prev : '')"></div>
+                    </div>
+                </template>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="fieldNow.state === 'nodata'" x-cloak>
+                <div class="qc-line">{{ 'Not enough data yet. Google publishes Chrome UX Report figures only for sites with enough Chrome visitors in the last 28 days.'|trans }}</div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="fieldNow.state === 'none'" x-cloak>
+                <div class="qc-line">{{ 'No data yet — click Run check now.'|trans }}</div>
+            </div>
+        </div>
+
+        <div class="qc-cols">
+            {# test laboratoryjny #}
+            <div class="qc-grid">
+                <div class="qi-head qc-set-row">
+                    <div>
+                        <div class="qc-set-title">{{ 'Key pages — lab test'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px" x-text="{{ 'PageSpeed Insights · '|trans|json_encode }} + (ps.device==='mobile' ? {{ 'mobile'|trans|json_encode }} : {{ 'desktop'|trans|json_encode }}) + (last[ps.device] ? {{ ' · checked '|trans|json_encode }} + last[ps.device] : {{ ' · not checked yet'|trans|json_encode }})"></div>
+                    </div>
+                </div>
+                <template x-for="p in ps.pages" :key="p.id">
+                <div>
+                    <div class="qc-grid-row qi-row qi-psrow" style="grid-template-columns:52px 1fr auto 24px;cursor:pointer" @click="ps.open = ps.open===p.id ? null : p.id">
+                        <span class="qc-badge" :class="psLab(p).pending || psLab(p).error ? '' : psLab(p).scoreClass" x-text="psLab(p).pending || psLab(p).error ? '—' : psLab(p).score"></span>
+                        <div style="min-width:0">
+                            <div class="qc-set-title" x-text="p.label"></div>
+                            <div class="qc-mono" style="margin-top:4px;color:var(--fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="p.path"></div>
+                        </div>
+                        <span class="qc-line qi-psmetrics" x-text="psLab(p).pending ? {{ 'Waiting for the next check'|trans|json_encode }} : (psLab(p).error ? {{ 'The test did not finish'|trans|json_encode }} : psLab(p).metrics)"></span>
+                        <span :style="{transform: ps.open===p.id ? 'rotate(180deg)' : 'none', color: 'var(--fg-3)'}">{{ icons.icon('chevronDown', 14) }}</span>
+                    </div>
+                    <template x-if="ps.open===p.id">
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr;background:var(--surface-sunken)">
+                        <div class="qc-caption" style="margin:0">{{ 'What would help most'|trans }}</div>
+                        <template x-for="(t, n) in (psLab(p).tips || [])" :key="n">
+                            <div class="qc-set-row" style="align-items:center">
+                                <span style="font-size:var(--text-sm)" x-text="t.title"></span>
+                                <span class="qc-line" x-text="t.saves"></span>
+                            </div>
+                        </template>
+                        <div class="qc-line" x-show="psLab(p).error" x-text="psLab(p).error"></div>
+                        <div class="qc-line" x-show="!psLab(p).error && !(psLab(p).tips || []).length">{{ 'No results yet.'|trans }}</div>
+                        <div><a class="qc-linkbtn" :href="p.report" target="_blank" rel="noopener">{{ 'Full report in PageSpeed Insights'|trans }}</a></div>
+                    </div>
+                    </template>
+                </div>
+                </template>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="!ps.pages.length" x-cloak>
+                    <div class="qc-line">{{ 'No pages to test. Add one on the right.'|trans }}</div>
+                </div>
+            </div>
+
+            {# ustawienia #}
+            <div class="qc-settings-list">
+                <div class="qc-grid">
+                    <div class="qi-head">
+                        <div class="qc-set-title">{{ 'Pages to test'|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ 'Up to 5 — one of each page type is enough.'|trans }}</div>
+                    </div>
+                    <template x-for="p in ps.pages" :key="p.id">
+                        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                            <div style="min-width:0">
+                                <div style="font-size:var(--text-sm)" x-text="p.label"></div>
+                                <div class="qc-mono" style="margin-top:4px;color:var(--fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="p.path"></div>
+                            </div>
+                            <button type="button" class="qc-icon-btn qc-danger" @click="psRemove(p)" aria-label="{{ 'Remove'|trans }}">{{ icons.icon('trash', 14) }}</button>
+                        </div>
+                    </template>
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto" x-show="ps.pages.length < {{ maxPages }}">
+                        <input type="text" class="qc-field-base qc-focusable qc-mono" placeholder="https://yourshop.com/…" x-model="ps.newUrl" @keydown.enter="psAdd()">
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="psAdd()">{{ 'Add'|trans }}</button>
+                    </div>
+                </div>
+
+                <div class="qc-grid">
+                    <div class="qi-head"><div class="qc-set-title">{{ 'How often'|trans }}</div></div>
+                    {% for key, label in {weekly: 'Once a week', daily: 'Every day', manual: 'Only when I click Run check now'} %}
+                        <label class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr;cursor:pointer">
+                            <input type="radio" class="qc-radio" value="{{ key }}" x-model="ps.schedule" @change="psSchedule()">
+                            <span class="qc-set-title">{{ label|trans }}</span>
+                        </label>
+                    {% endfor %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                        <div class="qc-line">{{ 'Only the last result and the one before are kept — enough to see a change, nothing piles up in the database.'|trans }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+        job: job, type: 'pagespeed.check', onDone: 'qiPsiDone'
+    } only %}
+</div>
+{% endblock %}

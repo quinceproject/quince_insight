@@ -1,0 +1,19 @@
+{#
+  Zakladki ekranu przelaczane parametrem `?tab=` (serwer renderuje tylko wybrana).
+
+  Zmienne: tabs (wynik `Ui\PageTabs::resolve()`), route (nazwa trasy ekranu),
+  params (opcjonalne pozostale parametry adresu, np. {'feed': 3}), param (nazwa
+  parametru, domyslnie `tab`).
+
+  Uzycie:
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/tabs.html.twig' with {
+        tabs: tabs, route: 'quince_insight_analytics'
+    } only %}
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-tabs">
+    {% for item in tabs.items %}
+        <a href="{{ path(route, params|default({})|merge({(param|default('tab')): item.key})) }}"
+           class="qc-tab{{ item.active ? ' is-active' : '' }}"{% if item.active %} aria-current="page"{% endif %}>{{ item.label|trans }}</a>
+    {% endfor %}
+</div>

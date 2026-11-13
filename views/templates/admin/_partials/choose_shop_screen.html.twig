@@ -1,0 +1,6 @@
+{# Pelna strona z prosba o wybranie sklepu — renderowana przez `PanelController::renderPanel()`. #}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+
+{% block quince_body %}
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/choose_shop.html.twig' with {title: navTitle} only %}
+{% endblock %}

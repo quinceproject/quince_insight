@@ -1,0 +1,26 @@
+{#
+  Stan pusty: prawdziwa informacja, ze danych jeszcze nie ma, i co zrobic — nigdy liczby
+  przykladowe. Wstawiac wewnatrz karty `qc-grid`.
+
+  Zmienne: icon (nazwa ikony, domyslnie `layout`), title (opcjonalny, pogrubiony),
+  text, params (parametry tlumaczenia tekstu), action (opcjonalnie {label, url}).
+
+  Uzycie:
+    <div class="qc-grid">
+        {% include '@Modules/quince_insight/views/templates/admin/_partials/empty.html.twig' with {
+            icon: 'search', title: 'No data yet', text: 'Google needs a day or two to collect the first results.'
+        } only %}
+    </div>
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-empty">
+    {{ icons.icon(icon|default('layout'), 28, 'qc-empty-icon') }}
+    <div class="qc-empty-text">
+        {% if title|default('') %}<strong>{{ title|trans }}</strong><br>{% endif %}
+        {{ text|default('')|trans(params|default({})) }}
+        {% if action is defined and action %}
+            <div style="margin-top:12px"><a class="qc-btn qc-btn-outline qc-btn-sm" href="{{ action.url }}">{{ action.label|trans }}</a></div>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,59 @@
+{#
+  Krok Services — karty w grupach, kolejnosc wg zaleznosci (prototyp `cur==='services'`).
+  Zaleznosci jak w prototypie: Ads wlacza Tag Manager, opinie wlaczaja Merchant Center;
+  wylaczenie uslugi bazowej wylacza zalezna. Serwer pilnuje tego samego (`Services::setEnabled`).
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set sv = servicesStep %}
+<div x-data="QIWizardServices({{ sv.selected|json_encode }})">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'What should Quince Insight connect?'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Pick the services you use. The others can be added later from the sidebar.'|trans }}</div>
+        </div>
+    </div>
+
+    {% if sv.copyFrom %}
+    <div class="qc-grid" style="margin-bottom:18px">
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;border-top:0">
+            <div>
+                <div class="qc-set-title">{{ 'Copy settings from another shop'|trans }}</div>
+                <div class="qc-line" style="margin-top:4px">{{ 'Events, consent, and the feed filters, mapping and rules. Accounts are still chosen for this shop.'|trans }}</div>
+            </div>
+            <div class="qc-select-wrap" style="min-width:180px">
+                <select name="copy_from" class="qc-field-base qc-select qc-focusable">
+                    <option value="0">{{ 'Do not copy'|trans }}</option>
+                    {% for s in sv.copyFrom %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="qc-stack">
+    {% for gkey, glabel in sv.groups %}
+    <div>
+        <div class="qc-group-label">{{ glabel|trans }}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:16px">
+            {% for key, s in sv.services|filter(s => s.group == gkey) %}
+                <label class="qc-tool-card" style="cursor:pointer">
+                    <div class="qc-set-row" style="align-items:center">
+                        <div class="qc-tool-card-icon">{{ icons.icon(s.icon) }}</div>
+                        <span class="qc-toggle">
+                            <input type="hidden" name="svc[{{ key }}]" value="0">
+                            <input type="checkbox" name="svc[{{ key }}]" value="1" x-model="svc.{{ key }}">
+                            <span class="qc-toggle-track"></span>
+                        </span>
+                    </div>
+                    <div class="qc-tool-card-title">{{ s.name|trans }}</div>
+                    <div class="qc-tool-card-desc">{{ s.desc|trans }}</div>
+                    {% if s.uses %}<div><span class="qc-badge">{{ s.uses|trans }}</span></div>{% endif %}
+                </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+</div>

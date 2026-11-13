@@ -1,0 +1,824 @@
+# Trasy panelu Quince Insight (ARCHITEKTURA §9).
+#
+# Komplet tras istnieje od fali 0, razem ze stubem kazdej akcji: trasa wskazujaca
+# kontroler albo metode, ktorych nie ma, wywraca router calego panelu PrestaShop,
+# nie tylko jedna strone.
+#
+# `_legacy_controller` wskazuje ukryta zakladke ekranu — na niej wisza uprawnienia
+# sprawdzane przez `#[AdminSecurity]`. Widoki: GET. Zapisy i akcje: POST + CSRF.
+#
+# Trase spoza ARCHITEKTURA §9 agent dopisuje NA KONCU swojego bloku
+# (miedzy `# >>> <litera>` a `# <<< <litera>`) i wymienia w raporcie.
+
+# >>> F
+quince_insight_job_tick:
+  path: quince/insight/job/tick
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\JobController::tickAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:jobTick'
+
+quince_insight_job_status:
+  path: quince/insight/job/status
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\JobController::statusAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:jobStatus'
+
+quince_insight_job_cancel:
+  path: quince/insight/job/cancel
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\JobController::cancelAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:jobCancel'
+
+# Ekran deweloperski — odpowiada 404 bez pliku config/dev.php (nie ma go w paczce wydania).
+quince_insight_dev:
+  path: quince/insight/dev
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\DevController::indexAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:dev'
+
+quince_insight_dev_job_start:
+  path: quince/insight/dev/job/start
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\DevController::jobStartAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:devJobStart'
+
+quince_insight_dev_oauth_start:
+  path: quince/insight/dev/oauth/start
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\DevController::oauthStartAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:devOauthStart'
+
+quince_insight_dev_oauth_disconnect:
+  path: quince/insight/dev/oauth/disconnect
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\DevController::oauthDisconnectAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:devOauthDisconnect'
+
+quince_insight_dev_service_toggle:
+  path: quince/insight/dev/service/toggle
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\DevController::serviceToggleAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:devServiceToggle'
+# <<< F
+
+# >>> I
+quince_insight_overview:
+  path: quince/insight/overview
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\OverviewController::indexAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview'
+
+# Fala 2 (I): "Dismiss" informacji z tabeli `notice` (np. po usunieciu sklepu).
+quince_insight_overview_dismiss:
+  path: quince/insight/overview/dismiss
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\OverviewController::dismissAction
+    _legacy_controller: 'AdminQuinceInsightOverview'
+    _legacy_link: 'AdminQuinceInsightOverview:dismiss'
+# <<< I
+
+# >>> A
+quince_insight_wizard:
+  path: quince/insight/wizard
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::indexAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard'
+
+quince_insight_wizard_save:
+  path: quince/insight/wizard/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::saveAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:save'
+
+quince_insight_wizard_skip:
+  path: quince/insight/wizard/skip
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::skipAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:skip'
+
+quince_insight_wizard_finish:
+  path: quince/insight/wizard/finish
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::finishAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:finish'
+
+quince_insight_wizard_restart:
+  path: quince/insight/wizard/restart
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::restartAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:restart'
+
+quince_insight_wizard_shops:
+  path: quince/insight/wizard/shops
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::shopsAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:shops'
+
+quince_insight_cloud_check:
+  path: quince/insight/wizard/cloud/check
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::cloudCheckAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:cloudCheck'
+
+quince_insight_connect_start:
+  path: quince/insight/wizard/connect/start
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::connectStartAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:connectStart'
+
+quince_insight_connect_disconnect:
+  path: quince/insight/wizard/connect/disconnect
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::connectDisconnectAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:connectDisconnect'
+
+quince_insight_verify_check:
+  path: quince/insight/wizard/verify/check
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::verifyCheckAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:verifyCheck'
+
+quince_insight_verify_start:
+  path: quince/insight/wizard/verify/start
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::verifyStartAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:verifyStart'
+
+quince_insight_verify_remove:
+  path: quince/insight/wizard/verify/remove
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\WizardController::verifyRemoveAction
+    _legacy_controller: 'AdminQuinceInsightWizard'
+    _legacy_link: 'AdminQuinceInsightWizard:verifyRemove'
+
+quince_insight_settings:
+  path: quince/insight/settings
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SettingsController::indexAction
+    _legacy_controller: 'AdminQuinceInsightSettings'
+    _legacy_link: 'AdminQuinceInsightSettings'
+
+quince_insight_settings_save:
+  path: quince/insight/settings/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SettingsController::saveAction
+    _legacy_controller: 'AdminQuinceInsightSettings'
+    _legacy_link: 'AdminQuinceInsightSettings:save'
+
+quince_insight_settings_service_toggle:
+  path: quince/insight/settings/service/toggle
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SettingsController::serviceToggleAction
+    _legacy_controller: 'AdminQuinceInsightSettings'
+    _legacy_link: 'AdminQuinceInsightSettings:serviceToggle'
+
+quince_insight_settings_shops_save:
+  path: quince/insight/settings/shops/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SettingsController::shopsSaveAction
+    _legacy_controller: 'AdminQuinceInsightSettings'
+    _legacy_link: 'AdminQuinceInsightSettings:shopsSave'
+
+quince_insight_settings_cron_token:
+  path: quince/insight/settings/cron/token
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SettingsController::cronTokenAction
+    _legacy_controller: 'AdminQuinceInsightSettings'
+    _legacy_link: 'AdminQuinceInsightSettings:cronToken'
+
+quince_insight_settings_cron_run:
+  path: quince/insight/settings/cron/run
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SettingsController::cronRunAction
+    _legacy_controller: 'AdminQuinceInsightSettings'
+    _legacy_link: 'AdminQuinceInsightSettings:cronRun'
+
+quince_insight_support:
+  path: quince/insight/support
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SupportController::indexAction
+    _legacy_controller: 'AdminQuinceInsightSupport'
+    _legacy_link: 'AdminQuinceInsightSupport'
+
+quince_insight_support_diagnostics:
+  path: quince/insight/support/diagnostics
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SupportController::diagnosticsAction
+    _legacy_controller: 'AdminQuinceInsightSupport'
+    _legacy_link: 'AdminQuinceInsightSupport:diagnostics'
+# <<< A
+
+# >>> B
+quince_insight_analytics:
+  path: quince/insight/analytics
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::indexAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics'
+
+quince_insight_analytics_accounts:
+  path: quince/insight/analytics/accounts
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::accountsAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:accounts'
+
+quince_insight_analytics_wizard_setup:
+  path: quince/insight/analytics/wizard-setup
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::wizardSetupAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:wizardSetup'
+
+quince_insight_analytics_property_create:
+  path: quince/insight/analytics/property/create
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::propertyCreateAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:propertyCreate'
+
+quince_insight_analytics_stream_create:
+  path: quince/insight/analytics/stream/create
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::streamCreateAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:streamCreate'
+
+quince_insight_analytics_secret_create:
+  path: quince/insight/analytics/secret/create
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::secretCreateAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:secretCreate'
+
+quince_insight_analytics_ack:
+  path: quince/insight/analytics/ack
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::ackAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:ack'
+
+quince_insight_analytics_refresh:
+  path: quince/insight/analytics/refresh
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::refreshAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:refresh'
+
+quince_insight_analytics_save:
+  path: quince/insight/analytics/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\AnalyticsController::saveAction
+    _legacy_controller: 'AdminQuinceInsightAnalytics'
+    _legacy_link: 'AdminQuinceInsightAnalytics:save'
+# <<< B
+
+# >>> C
+quince_insight_events:
+  path: quince/insight/events
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::indexAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents'
+
+quince_insight_events_save:
+  path: quince/insight/events/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::saveAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:save'
+
+quince_insight_events_event_toggle:
+  path: quince/insight/events/event/toggle
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::eventToggleAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:eventToggle'
+
+quince_insight_events_key_toggle:
+  path: quince/insight/events/key/toggle
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::keyToggleAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:keyToggle'
+
+quince_insight_events_test_server:
+  path: quince/insight/events/test-server
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::testServerAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:testServer'
+
+quince_insight_events_order_resend:
+  path: quince/insight/events/order/resend
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::orderResendAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:orderResend'
+
+quince_insight_events_order_payload:
+  path: quince/insight/events/order/payload
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::orderPayloadAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:orderPayload'
+
+quince_insight_events_missing_scan:
+  path: quince/insight/events/missing/scan
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::missingScanAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:missingScan'
+
+quince_insight_events_missing_send:
+  path: quince/insight/events/missing/send
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::missingSendAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:missingSend'
+
+quince_insight_events_log_clear:
+  path: quince/insight/events/log/clear
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::logClearAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:logClear'
+
+quince_insight_reviews_save:
+  path: quince/insight/events/reviews/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\EventsController::reviewsSaveAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:reviewsSave'
+# <<< C
+
+# >>> D
+quince_insight_gtm_accounts:
+  path: quince/insight/gtm/accounts
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\TagManagerController::accountsAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:accounts'
+
+quince_insight_gtm_container_create:
+  path: quince/insight/gtm/container/create
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\TagManagerController::containerCreateAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:containerCreate'
+
+quince_insight_gtm_plan:
+  path: quince/insight/gtm/plan
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\TagManagerController::planAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:plan'
+
+quince_insight_gtm_apply:
+  path: quince/insight/gtm/apply
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\TagManagerController::applyAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:apply'
+
+quince_insight_gtm_save:
+  path: quince/insight/gtm/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\TagManagerController::saveAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:save'
+
+quince_insight_ads_save:
+  path: quince/insight/gtm/ads/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\TagManagerController::adsSaveAction
+    _legacy_controller: 'AdminQuinceInsightEvents'
+    _legacy_link: 'AdminQuinceInsightEvents:adsSave'
+# <<< D
+
+# >>> E
+quince_insight_merchant:
+  path: quince/insight/merchant
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::indexAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant'
+
+quince_insight_merchant_accounts:
+  path: quince/insight/merchant/accounts
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::accountsAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:accounts'
+
+quince_insight_merchant_register:
+  path: quince/insight/merchant/register
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::registerAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:register'
+
+quince_insight_merchant_claim:
+  path: quince/insight/merchant/claim
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::claimAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:claim'
+
+quince_insight_merchant_feed_create:
+  path: quince/insight/merchant/feed/create
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::feedCreateAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:feedCreate'
+
+quince_insight_merchant_feed_save:
+  path: quince/insight/merchant/feed/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::feedSaveAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:feedSave'
+
+quince_insight_merchant_feed_delete:
+  path: quince/insight/merchant/feed/delete
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::feedDeleteAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:feedDelete'
+
+quince_insight_merchant_feed_status:
+  path: quince/insight/merchant/feed/status
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::feedStatusAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:feedStatus'
+
+quince_insight_merchant_count:
+  path: quince/insight/merchant/count
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::countAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:count'
+
+quince_insight_merchant_sync:
+  path: quince/insight/merchant/sync
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::syncAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:sync'
+
+quince_insight_merchant_products_action:
+  path: quince/insight/merchant/products/action
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::productsActionAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:productsAction'
+
+quince_insight_merchant_product_detail:
+  path: quince/insight/merchant/product/detail
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::productDetailAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:productDetail'
+
+quince_insight_merchant_refresh_status:
+  path: quince/insight/merchant/refresh-status
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::refreshStatusAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:refreshStatus'
+
+quince_insight_merchant_wizard_draft:
+  path: quince/insight/merchant/wizard-draft
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantController::wizardDraftAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:wizardDraft'
+# <<< E
+
+# >>> M
+quince_insight_merchant_mapping_save:
+  path: quince/insight/merchant/mapping/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::mappingSaveAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:mappingSave'
+
+quince_insight_merchant_taxonomy_search:
+  path: quince/insight/merchant/taxonomy/search
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::taxonomySearchAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:taxonomySearch'
+
+quince_insight_merchant_rule_save:
+  path: quince/insight/merchant/rule/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::ruleSaveAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:ruleSave'
+
+quince_insight_merchant_rule_delete:
+  path: quince/insight/merchant/rule/delete
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::ruleDeleteAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:ruleDelete'
+
+quince_insight_merchant_rule_sort:
+  path: quince/insight/merchant/rule/sort
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::ruleSortAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:ruleSort'
+
+quince_insight_merchant_promo_send:
+  path: quince/insight/merchant/promo/send
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::promoSendAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:promoSend'
+
+quince_insight_merchant_promo_scan:
+  path: quince/insight/merchant/promo/scan
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::promoScanAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:promoScan'
+
+quince_insight_merchant_shipping_preview:
+  path: quince/insight/merchant/shipping/preview
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::shippingPreviewAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:shippingPreview'
+
+quince_insight_merchant_shipping_send:
+  path: quince/insight/merchant/shipping/send
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::shippingSendAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:shippingSend'
+
+quince_insight_merchant_report:
+  path: quince/insight/merchant/report
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::reportAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:report'
+quince_insight_merchant_tools_preview:
+  path: quince/insight/merchant/tools-preview
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\MerchantToolsController::previewAction
+    _legacy_controller: 'AdminQuinceInsightMerchant'
+    _legacy_link: 'AdminQuinceInsightMerchant:toolsPreview'
+# <<< M
+
+# >>> G
+quince_insight_gsc:
+  path: quince/insight/search-console
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::indexAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole'
+
+quince_insight_gsc_sites:
+  path: quince/insight/search-console/sites
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::sitesAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:sites'
+
+quince_insight_gsc_site_add:
+  path: quince/insight/search-console/site/add
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::siteAddAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:siteAdd'
+
+quince_insight_gsc_save:
+  path: quince/insight/search-console/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::saveAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:save'
+
+quince_insight_gsc_refresh:
+  path: quince/insight/search-console/refresh
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::refreshAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:refresh'
+
+quince_insight_sitemap_rebuild:
+  path: quince/insight/sitemap/rebuild
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::sitemapRebuildAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:sitemapRebuild'
+
+quince_insight_sitemap_submit:
+  path: quince/insight/sitemap/submit
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::sitemapSubmitAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:sitemapSubmit'
+
+quince_insight_sitemap_remove:
+  path: quince/insight/sitemap/remove
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::sitemapRemoveAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:sitemapRemove'
+
+quince_insight_sitemap_save:
+  path: quince/insight/sitemap/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\SearchConsoleController::sitemapSaveAction
+    _legacy_controller: 'AdminQuinceInsightSearchConsole'
+    _legacy_link: 'AdminQuinceInsightSearchConsole:sitemapSave'
+# <<< G
+
+# >>> H
+quince_insight_psi:
+  path: quince/insight/page-speed
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\PageSpeedController::indexAction
+    _legacy_controller: 'AdminQuinceInsightPageSpeed'
+    _legacy_link: 'AdminQuinceInsightPageSpeed'
+
+quince_insight_psi_run:
+  path: quince/insight/page-speed/run
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\PageSpeedController::runAction
+    _legacy_controller: 'AdminQuinceInsightPageSpeed'
+    _legacy_link: 'AdminQuinceInsightPageSpeed:run'
+
+quince_insight_psi_page_save:
+  path: quince/insight/page-speed/page/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\PageSpeedController::pageSaveAction
+    _legacy_controller: 'AdminQuinceInsightPageSpeed'
+    _legacy_link: 'AdminQuinceInsightPageSpeed:pageSave'
+
+quince_insight_psi_page_delete:
+  path: quince/insight/page-speed/page/delete
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\PageSpeedController::pageDeleteAction
+    _legacy_controller: 'AdminQuinceInsightPageSpeed'
+    _legacy_link: 'AdminQuinceInsightPageSpeed:pageDelete'
+
+quince_insight_psi_save:
+  path: quince/insight/page-speed/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\PageSpeedController::saveAction
+    _legacy_controller: 'AdminQuinceInsightPageSpeed'
+    _legacy_link: 'AdminQuinceInsightPageSpeed:save'
+
+quince_insight_schema:
+  path: quince/insight/structured-data
+  methods: [GET]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\StructuredDataController::indexAction
+    _legacy_controller: 'AdminQuinceInsightStructuredData'
+    _legacy_link: 'AdminQuinceInsightStructuredData'
+
+quince_insight_schema_scan:
+  path: quince/insight/structured-data/scan
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\StructuredDataController::scanAction
+    _legacy_controller: 'AdminQuinceInsightStructuredData'
+    _legacy_link: 'AdminQuinceInsightStructuredData:scan'
+
+quince_insight_schema_save:
+  path: quince/insight/structured-data/save
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\StructuredDataController::saveAction
+    _legacy_controller: 'AdminQuinceInsightStructuredData'
+    _legacy_link: 'AdminQuinceInsightStructuredData:save'
+
+quince_insight_schema_preview:
+  path: quince/insight/structured-data/preview
+  methods: [POST]
+  defaults:
+    _controller: Quince\Insight\Controller\Admin\StructuredDataController::previewAction
+    _legacy_controller: 'AdminQuinceInsightStructuredData'
+    _legacy_link: 'AdminQuinceInsightStructuredData:preview'
+# <<< H

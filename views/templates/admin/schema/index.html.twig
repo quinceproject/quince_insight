@@ -1,0 +1,174 @@
+{#
+  Structured data — 1:1 z prototypu (`prototypy/index.html`, `pg==='schema'`).
+
+  Dane (`sd`): scanned, scan (strony z typami i zrodlami), present (typ modulu => zrodlo
+  znalezionego odpowiednika), types (Types::definitions), on, force, blog, shippingData,
+  job (trwajacy skan), autoScan (pierwsze otwarcie bez skanu), urls.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_scripts %}
+    <script src="{{ asset('../modules/quince_insight/views/js/admin/schema.js') ~ '?v=' ~ qcVersion|default('0') }}" defer></script>
+{% endblock %}
+
+{% block quince_body %}
+{% set qiTypes = [] %}
+{% for t in sd.types %}
+    {% set qiTypes = qiTypes|merge([t|merge({name: t.name|trans, desc: t.desc|trans, where: t.where|trans})]) %}
+{% endfor %}
+{% set qiCfg = sd|merge({types: qiTypes, t: {
+    inTheme: 'Already in the theme'|trans,
+    onShop: 'Added by another module'|trans,
+    variantsTheme: 'Locked — the theme outputs Product on product pages. Turn it off in the theme, then click Scan again.'|trans,
+    variantsOther: 'Locked — another module outputs Product on product pages. Turn it off there, then click Scan again.'|trans
+}}) %}
+<div class="qc-screen" x-data="qiSchema({{ qiCfg|json_encode }})" @qi-schema-stopped.window="sd.scanning = false">
+    <div class="qc-head" style="margin-bottom:20px">
+        <div>
+            <div class="qc-head-title">{{ 'Structured data'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Invisible product and shop descriptions Google uses for prices, ratings and breadcrumbs in search results. The module adds only what the theme and other modules do not.'|trans }}</div>
+        </div>
+        <button type="button" class="qc-btn qc-btn-outline" style="align-self:flex-start" @click="sdScan()" :disabled="sd.scanning"><span class="qc-spinner" x-show="sd.scanning" x-cloak></span> {{ 'Scan again'|trans }}</button>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-settings-list">
+            {# co juz jest na stronach #}
+            <div class="qc-grid">
+                <div class="qi-head">
+                    <div class="qc-set-title">{{ 'Found on the shop'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">
+                        {% if sd.scanned %}
+                            {{ 'One page of each type, read like Google reads it · scanned %date%'|trans({'%date%': sd.scanned}) }}
+                        {% else %}
+                            {{ 'One page of each type, read like Google reads it · not scanned yet'|trans }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% for s in sd.scan %}
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:130px 1fr;align-items:start">
+                        <div>
+                            <div class="qc-set-title">{{ s.page|trans }}</div>
+                            <div class="qc-mono" style="margin-top:4px;color:var(--fg-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ s.path }}">{{ s.path }}</div>
+                        </div>
+                        <div class="qc-hstack" style="gap:6px">
+                            {% for f in s.found %}
+                                <span class="qc-badge{{ f[1] == 'Quince Blog' ? ' qc-badge-accent' : (f[1] == 'Quince Insight' ? ' qc-badge-success' : '') }}">{{ f[0] }} · {{ f[1]|trans }}</span>
+                            {% endfor %}
+                            {% if s.error %}
+                                <span class="qc-badge qc-badge-danger">{{ 'Could not read the page: %error%'|trans({'%error%': s.error}) }}</span>
+                            {% elseif not s.found %}
+                                <span class="qc-line">{{ 'No structured data on this page.'|trans }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            {# blog #}
+            {% if sd.blog %}
+                <div class="qc-grid">
+                    <div class="qi-head qc-set-row">
+                        <div>
+                            <div class="qc-set-title">{{ 'Quince Blog'|trans }}</div>
+                            <div class="qc-line" style="margin-top:4px">{{ 'Adds BlogPosting, breadcrumbs and FAQ to every published post itself. The module adds nothing on blog pages, so nothing is duplicated.'|trans }}</div>
+                        </div>
+                        <span class="qc-badge qc-badge-success">{{ 'Detected'|trans }}</span>
+                    </div>
+                </div>
+            {% endif %}
+
+            {# co modul moze dodac #}
+            <div class="qc-grid">
+                <div class="qi-head">
+                    <div class="qc-set-title">{{ 'What Quince Insight can add'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Off by default. Types the theme already outputs stay locked — two copies of the same data confuse Google.'|trans }}</div>
+                </div>
+                <template x-for="t in types" :key="t.key">
+                    <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto auto;align-items:start">
+                        <div>
+                            <div class="qc-set-title" x-text="t.name"></div>
+                            <div class="qc-line" style="margin-top:4px" x-text="t.desc"></div>
+                            <div class="qc-sub" style="margin-top:4px" x-text="t.where"></div>
+                            {# decyzja #18: warianty przy Product z motywu / innego modulu — powod blokady, bez "Add anyway" #}
+                            <div class="qc-sub" style="margin-top:4px;color:var(--warning)" x-show="sdNoForce(t) && sdInTheme(t)" x-cloak x-text="present[t.key] === 'Theme' ? cfgT.variantsTheme : cfgT.variantsOther"></div>
+                            {% if not sd.shippingData %}
+                                <div class="qc-sub" style="margin-top:4px;color:var(--warning)" x-show="t.key === 'shipping'">{{ 'Merchant Center has no shipping settings from the module yet. Nothing is added until they are sent.'|trans }}</div>
+                            {% endif %}
+                        </div>
+                        <div style="text-align:right">
+                            <span class="qc-badge qc-badge-warning" x-show="sdInTheme(t) && !sd.force[t.key]" x-text="sdSourceLabel(t)"></span>
+                            <span class="qc-badge qc-badge-danger" x-show="sdInTheme(t) && sd.force[t.key] && sd.on[t.key]">{{ 'Duplicate'|trans }}</span>
+                            <div style="margin-top:6px" x-show="sdInTheme(t) && !sd.force[t.key] && !sdNoForce(t)"><button type="button" class="qc-linkbtn" @click="sdForce(t)">{{ 'Add anyway'|trans }}</button></div>
+                            <span class="qc-badge" x-show="!sdInTheme(t) && scanned">{{ 'Missing in the theme'|trans }}</span>
+                        </div>
+                        <label class="qc-toggle">
+                            <input type="checkbox" x-model="sd.on[t.key]" :disabled="sdLocked(t)" @change="sdToggle()"><span class="qc-toggle-track"></span>
+                        </label>
+                    </div>
+                </template>
+                {% if sd.blog %}
+                    <div class="qc-grid-row qi-row qc-disabled-area is-off" style="grid-template-columns:1fr auto auto;align-items:start">
+                        <div>
+                            <div class="qc-set-title">{{ 'Blog posts'|trans }}</div>
+                            <div class="qc-line" style="margin-top:4px">{{ 'BlogPosting, breadcrumbs and FAQ.'|trans }}</div>
+                            <div class="qc-sub" style="margin-top:4px">{{ 'Blog'|trans }}</div>
+                        </div>
+                        <div style="text-align:right">
+                            <span class="qc-badge">{{ 'Handled by Quince Blog'|trans }}</span>
+                        </div>
+                        <span></span>
+                    </div>
+                {% endif %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="!sd.saved" x-cloak>
+                    <div class="qc-alert qc-alert-warning" x-show="sdDuplicates().length">
+                        {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                        <div x-text="{{ 'The theme already outputs '|trans|json_encode }} + sdDuplicates().join(', ') + {{ '. Turn it off in the theme first, or Google will see the data twice.'|trans|json_encode }}"></div>
+                    </div>
+                    <div class="qc-alert qc-alert-info">
+                        {{ icons.icon('info', 18, 'qc-alert-icon') }}
+                        <div>{{ 'Saving changes the code of pages your visitors open. Nothing visible changes on the page itself.'|trans }}</div>
+                    </div>
+                    <div class="qc-hstack" style="gap:8px;justify-content:flex-end">
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-primary" @click="sdSave()">{{ 'Save'|trans }}</button>
+                    </div>
+                </div>
+            </div>
+
+            {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+                job: sd.job, type: 'structureddata.scan', onDone: 'qiSchemaScanned'
+            } only %}
+        </div>
+
+        {# podglad #}
+        <div class="qc-grid" style="position:sticky;top:calc(var(--qc-top-offset) + 20px)">
+            <div class="qi-head qc-set-row" style="align-items:center">
+                <div class="qc-set-title">{{ 'Preview — what the module adds'|trans }}</div>
+                <div class="qc-select-wrap" style="width:150px">
+                    <select class="qc-field-base qc-field-sm qc-select qc-focusable" style="width:100%" x-model="sd.preview" @change="sdLoadPreview()">
+                        <option value="home">{{ 'Home page'|trans }}</option>
+                        <option value="category">{{ 'Category'|trans }}</option>
+                        <option value="product">{{ 'Product'|trans }}</option>
+                        <option value="blog">{{ 'Blog post'|trans }}</option>
+                    </select>
+                    {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                </div>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                <pre class="qc-pre qc-mono" style="max-height:480px;overflow:auto" x-show="sd.json" x-text="sd.json"></pre>
+                <div class="qc-line" x-show="!sd.json && !sd.loading" x-text="sd.preview==='blog' ? {{ 'Nothing — Quince Blog handles blog pages.'|trans|json_encode }} : {{ 'Nothing on this page type. Switch on a type on the left to see it here.'|trans|json_encode }}"></div>
+                <template x-for="(s, n) in sd.skipped" :key="n">
+                    <div class="qc-line" style="color:var(--warning)" x-text="s"></div>
+                </template>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                <span class="qc-line">{{ 'Check a live page with Google\'s own tool.'|trans }}</span>
+                <a class="qc-linkbtn" href="https://search.google.com/test/rich-results" target="_blank" rel="noopener">{{ 'Rich Results Test'|trans }}</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

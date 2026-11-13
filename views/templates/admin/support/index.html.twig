@@ -1,0 +1,63 @@
+{#
+  Support — wizytowka 1:1 z prototypu `pg==='support'`. Pod nia (paczka A, wzor Quince CMP):
+  "System information" do zgloszenia bledu (bez sekretow, ladowane na zadanie) i changelog.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_body %}
+<div class="qc-screen qc-settings">
+    <div class="qc-grid">
+        <div class="qc-about">
+            <div class="qc-about-mark">{{ icons.icon('layout', 28) }}</div>
+            <div class="qc-about-name">Quince Insight</div>
+            <div class="qc-about-tagline">{{ 'Google for PrestaShop, in one place'|trans }}</div>
+            <div class="qc-about-claim">{{ 'Search Console, Analytics, Tag Manager and Merchant Center connected through one setup. Free and open source. If it saves you time, consider buying me a coffee.'|trans }}</div>
+            <a class="qc-btn qc-btn-primary" href="https://buymeacoffee.com/marcingajewski" target="_blank" rel="noopener" style="margin-top:8px">{{ 'Buy me a coffee'|trans }}</a>
+            <div class="qc-line" style="margin-top:8px">{{ 'Version %version%'|trans({'%version%': version}) }}</div>
+        </div>
+    </div>
+
+    <div class="qc-cols" style="margin-top:20px">
+        <div class="qc-settings-list">
+            <div class="qc-grid" style="padding:16px 18px" x-data="{
+                    open: false, loaded: false, busy: false, text: '', errors: [],
+                    url: {{ path('quince_insight_support_diagnostics')|json_encode }},
+                    load() { this.busy = true; return QI.post(this.url, {}).then(r => { this.busy = false; if (r.ok) { this.text = r.text; this.errors = r.errors || []; this.loaded = true; } }); },
+                    toggle() { this.open = !this.open; if (this.open && !this.loaded) { this.load(); } }
+                }">
+                <div class="qc-hstack" style="justify-content:space-between">
+                    <div>
+                        <div class="qc-set-title">{{ 'System information'|trans }}</div>
+                        <div class="qc-line" style="margin:2px 0 0">{{ 'Paste this into a bug report. Secrets and tokens are never included.'|trans }}</div>
+                    </div>
+                    <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" x-show="loaded" x-cloak @click="QI.copy(text)">{{ 'Copy'|trans }}</button>
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="toggle()">
+                            {{ icons.icon('chevronDown', 13) }}
+                            <span x-text="open ? {{ 'Hide'|trans|json_encode }} : {{ 'Show'|trans|json_encode }}">{{ 'Show'|trans }}</span>
+                        </button>
+                    </div>
+                </div>
+                <div x-show="open" x-cloak style="margin-top:14px">
+                    <span class="qc-spinner" x-show="busy"></span>
+                    <div class="qc-mono qc-pre" x-show="loaded" x-text="text"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="qc-settings-list">
+            <div class="qc-grid" style="padding:16px 18px">
+                <div class="qc-set-title" style="margin-bottom:8px">{{ 'Changelog'|trans }}</div>
+                {% if changelog %}
+                    <div class="qc-mono qc-pre" style="max-height:420px;overflow:auto;white-space:pre-wrap">{{ changelog }}</div>
+                {% else %}
+                    <div class="qc-line" style="margin:0">{{ 'This package has no changelog file.'|trans }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

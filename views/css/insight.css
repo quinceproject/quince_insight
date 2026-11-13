@@ -1,0 +1,271 @@
+/* ===================================================================
+   Quince Insight — reguly wlasne panelu (prefiks `qi-`).
+
+   `panel.css` i `tokens/*` to kopie z Quince CMP i sa nietykalne. Tutaj jest to,
+   czego tam nie ma: reguly przeniesione z prototypu (`prototypy/css/proto.css`,
+   bez czesci sluzacej samemu prototypowi) oraz wspolne elementy `qi-*`.
+
+   Styl jednego ekranu idzie do `css/pages/<ekran>.css` z prefiksem `qi-<ekran>-`.
+   =================================================================== */
+
+/* ---------- z prototypu ------------------------------------------- */
+
+/* Usluga niepolaczona w bocznym pasku: wyszarzona jak `.qc-disabled`, ale klikalna —
+   prowadzi do kroku kreatora. `.qc-disabled` z panel.css wylacza klikniecie,
+   stad osobna klasa. */
+.qc-nav-item.qi-off {
+    opacity: .45;
+}
+
+.qc-nav-item.qi-off:hover {
+    opacity: .7;
+}
+
+/* Pozycja paska ze stala wysokoscia 36px (components.css) nie miesci dwulinijkowej
+   etykiety — dluzsze polskie nazwy krokow ("Weryfikacja witryny") nachodzily na
+   sasiednie pozycje. Wysokosc rosnie z trescia, jedna linia wyglada jak dotad. */
+.qc-shell > .qc-sidenav .qc-nav-item {
+    height: auto;
+    min-height: 36px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.qc-shell > .qc-sidenav .qc-nav-label {
+    line-height: 1.3;
+    min-width: 0;
+}
+
+.qc-shell > .qc-sidenav .qc-nav-soon {
+    flex: none;
+}
+
+/* Kreator przy zmianie jednej uslugi: pozostale kroki widoczne ze stanem, ale nieklikalne
+   i bez wyszarzenia `.qc-disabled` — to nie sa kroki wylaczone. */
+.qc-nav-item.qi-static {
+    pointer-events: none;
+}
+
+/* Wiersz listy i naglowek karty z odstepem kart ustawien Quince CMP.
+   `.qc-grid-row` z panel.css ma 10px 12px — w kreatorze i kartach za ciasno. */
+.qc-grid-row.qi-row {
+    padding: 16px 18px;
+    gap: 14px;
+}
+
+.qi-head {
+    padding: 16px 18px;
+}
+
+/* Przelacznik w wierszu, ktory sam jest etykieta — bez drugiego <label>. */
+.qi-row:is(label) .qc-toggle,
+.qc-tool-card .qc-toggle {
+    pointer-events: none;
+}
+
+/* ---------- wspolne elementy qi-* ---------------------------------- */
+
+/* Numery stron jako odnosniki (stronicowanie po stronie serwera). `.qc-page-btn`
+   z paczki jest pisany pod <button>, wiec odnosnik trzeba wysrodkowac samemu. */
+.qc-root .qi-page-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: var(--text-sm);
+    line-height: 1;
+}
+
+.qc-root span.qi-page-link {
+    cursor: default;
+    opacity: .45;
+}
+
+/* Wartosc do skopiowania (adres crona, adres zwrotny) z przyciskiem "Copy" obok. */
+.qi-copyrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.qi-copyrow > .qc-mono {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- telefon (z prototypu) ---------------------------------- */
+
+@media (max-width: 767px) {
+    /* CMP ma regule zwijania tylko dla naglowka strony i paska akcji — reszte
+       dopisujemy tu, w tym samym duchu. */
+
+    /* Tresc wiersza nie rozpycha kolumny (adresy, kod, dlugie nazwy). */
+    .qi-row > * {
+        min-width: 0;
+    }
+
+    /* Naglowek ekranu: akcje schodza pod tytul zamiast wychodzic za ekran. */
+    .qc-root .qc-head {
+        flex-wrap: wrap;
+    }
+
+    .qc-root .qc-head .qc-hstack {
+        flex-wrap: wrap !important;
+    }
+
+    /* Zakladki w jednym rzedzie, przewijane w bok — jak w aplikacjach mobilnych. */
+    .qc-root .qc-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+    }
+
+    .qc-root .qc-tab {
+        white-space: nowrap;
+    }
+
+    /* Przelaczniki segmentowe i wiersze "tytul + akcja" zawijaja sie. */
+    .qc-root .qc-seg,
+    .qc-root .qc-set-row {
+        flex-wrap: wrap;
+    }
+
+    /* Rzedy liczb: 4-6 kolumn -> 2. */
+    .qi-row[style*="repeat(4"],
+    .qi-row[style*="repeat(5"],
+    .qi-row[style*="repeat(6"] {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        row-gap: 18px;
+    }
+
+    /* Tabele: przewijane w bok wewnatrz karty, strona stoi
+       (jak macierz Consent Mode w panel.css CMP: "suwak nalezy do tabeli"). */
+    .qc-grid:has(.qc-grid-head) {
+        overflow-x: auto;
+    }
+
+    .qc-grid:has(.qc-grid-head) .qc-grid-head,
+    .qc-grid:has(.qc-grid-head) .qc-grid-row {
+        min-width: 760px;
+    }
+
+    /* Kolumny i filtry nie rozpychaja ekranu: tabela w kolumnie przewija sie w swojej karcie. */
+    .qc-root .qc-cols > * {
+        min-width: 0;
+    }
+
+    .qc-root .qc-filters > *,
+    .qc-root .qc-filters .qc-select-wrap,
+    .qc-root .qc-filters input {
+        max-width: 100%;
+    }
+
+    .qc-root .qc-filters .qc-hstack {
+        flex-wrap: wrap !important;
+    }
+
+    /* Stopka stronicowania: numery stron w pierwszym wierszu, licznik i rozmiar strony w drugim. */
+    .qc-root .qc-listfoot {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    /* Wskazniki obok siebie, ktore na telefonie trzeba czytac pojedynczo. */
+    .qi-stack-mobile {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Page speed: wyniki pod nazwa strony, nie obok. */
+    .qi-psrow {
+        grid-template-columns: 52px minmax(0, 1fr) 24px !important;
+    }
+
+    .qi-psrow > .qi-psmetrics {
+        grid-column: 2;
+        grid-row: 2;
+    }
+}
+
+
+/* ---------- pasek krokow kreatora (zatwierdzony przez usera 2026-11-12) ----------
+   Numer w kazdym kolku i pionowa linia laczaca kroki — odpowiednik `qc-step-line`
+   ze Steppera Quince DS. Odcinek od zrobionego kroku do nastepnego w kolorze akcentu.
+   Wzor: prototypy/podglad-pasek-krokow.html. */
+.qi-steps {
+    display: flex;
+    flex-direction: column;
+}
+
+.qi-steps .qc-nav-item {
+    position: relative;
+}
+
+.qi-steps .qc-step {
+    position: relative;
+    z-index: 1;
+}
+
+.qi-steps .qc-step-num {
+    background: var(--surface);
+}
+
+.qi-steps .qc-nav-item.qc-active .qc-step-num {
+    background: var(--accent-soft);
+}
+
+.qi-steps .qc-step.qc-done .qc-step-num {
+    background: var(--accent);
+}
+
+.qi-steps .qc-nav-item::before,
+.qi-steps .qc-nav-item::after {
+    content: '';
+    position: absolute;
+    left: 20px;
+    width: 2px;
+    background: var(--border-strong);
+}
+
+.qi-steps .qc-nav-item::before {
+    top: 0;
+    bottom: 50%;
+}
+
+.qi-steps .qc-nav-item::after {
+    top: 50%;
+    bottom: 0;
+}
+
+.qi-steps .qc-nav-item:first-of-type::before,
+.qi-steps .qc-nav-item:last-of-type::after {
+    display: none;
+}
+
+.qi-steps .qc-nav-item.qi-line-done::after,
+.qi-steps .qc-nav-item.qi-prev-done::before {
+    background: var(--accent);
+}
+
+/* Kreator sie nie zwija (decyzja usera 2026-11-12): same numery bez nazw krokow nic nie
+   mowia. Odwolanie regul waskiego ekranu z panel.css tylko dla paska krokow;
+   panel uslug zwija sie dalej do ikon jak w Quince CMP. */
+@media (min-width: 768px) and (max-width: 1180px) {
+    .qc-shell > .qc-sidenav.qi-steps {
+        width: var(--sidebar-w);
+    }
+
+    .qc-shell > .qc-sidenav.qi-steps .qc-nav-label,
+    .qc-shell > .qc-sidenav.qi-steps .qc-nav-soon {
+        display: inline;
+    }
+
+    .qc-shell > .qc-sidenav.qi-steps .qc-sidenav-section {
+        opacity: 1;
+        height: auto;
+        padding: 14px 10px 6px;
+    }
+}

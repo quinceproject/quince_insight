@@ -1,0 +1,121 @@
+{#
+  Krok Google account — 1:1 z prototypu `cur==='connect'`. Lewa: uprawnienia (tylko odczyt).
+  Prawa: konto i logowanie. Okno zgody jest po stronie Google — kreator pokazuje wynik
+  (przyznane scope'y z odpowiedzi tokenowej, research/05 §A.3).
+
+  Przyciski logowania wysylaja formularz `#qi-grant-form` z powloki (poza formularzem kroku).
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/fields.html.twig' as fields %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set k = connectStep %}
+{% set failed = oauthResult == 'error' %}
+{% set state = k.connected ? 'done' : (failed ? 'error' : 'idle') %}
+<div>
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'Connect your Google account'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Sign in with the Google account that has access to the services you picked. The module asks only for what those services need.'|trans }}</div>
+        </div>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <div class="qi-head">
+                <div class="qc-set-title">{{ state == 'done' ? 'Permissions granted'|trans : 'Google will ask you to allow'|trans }}</div>
+                {% if state != 'done' %}
+                    <div class="qc-line" style="margin-top:4px">{{ 'You can untick any of them in the Google window. The matching step will then ask again.'|trans }}</div>
+                {% endif %}
+            </div>
+            {% for s in k.scopes %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+                    <div>
+                        <div style="font-size:var(--text-sm)">{{ s.label|trans }}</div>
+                        <div class="qc-sub" style="margin-top:4px">{{ s.svc|trans }}</div>
+                    </div>
+                    {% if state == 'done' %}
+                        <span style="color:{{ s.granted ? 'var(--success)' : 'var(--danger)' }}">{{ icons.icon(s.granted ? 'check' : 'x', 14) }}</span>
+                    {% else %}
+                        <span></span>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="qc-settings-list" x-data="{ connecting: false }">
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Google account'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr">
+                    <span style="display:flex">
+                        <span class="qc-spinner" style="color:var(--accent)" x-show="connecting" x-cloak></span>
+                        <span class="qc-dot{{ state == 'done' ? ' is-on' }}" x-show="!connecting"></span>
+                    </span>
+                    <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">
+                        <span x-show="connecting" x-cloak>{{ 'Waiting for Google…'|trans }}</span>
+                        <span x-show="!connecting">
+                            {% if state == 'done' %}
+                                {{ 'Connected as'|trans }} <span class="qc-mono">{{ k.email }}</span>
+                            {% else %}
+                                {{ 'Not connected'|trans }}
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div>
+                        {% if state != 'done' %}
+                            <button type="submit" form="qi-grant-form" class="qc-btn qc-btn-primary" @click="connecting = true">
+                                {{ icons.icon('user', 14) }}
+                                <span>{{ state == 'error' ? 'Try again'|trans : 'Sign in with Google'|trans }}</span>
+                            </button>
+                        {% else %}
+                            <button type="submit" form="qi-grant-form" class="qc-linkbtn" @click="connecting = true">{{ 'Use a different account'|trans }}</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {% if state == 'idle' %}
+            <div class="qc-alert qc-alert-info">
+                {{ icons.icon('info', 18, 'qc-alert-icon') }}
+                <div>{{ 'Google will say the app is not verified. That is expected — the app is your own Cloud project. Choose <strong>Advanced</strong>, then continue to your project.'|trans|raw }}</div>
+            </div>
+            {% endif %}
+
+            {% if state == 'error' %}
+            <div class="qc-alert qc-alert-danger">
+                {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                <div style="min-width:0;flex:1">
+                    {% if 'redirect_uri' in k.lastError %}
+                        <strong>{{ 'Error 400: redirect_uri_mismatch.'|trans }}</strong> {{ 'The redirect URI in your OAuth client is different. Add exactly this address in Google Cloud and try again:'|trans }}
+                    {% else %}
+                        <strong>{{ 'Google sign-in failed.'|trans }}</strong> {{ k.lastError }} {{ 'Check the Client ID, the Client secret and this redirect URI in Google Cloud, then try again:'|trans }}
+                    {% endif %}
+                    <div class="qc-hstack" style="gap:8px;margin-top:10px;flex-wrap:nowrap">
+                        <pre class="qc-pre qc-mono" style="flex:1;min-width:0">{{ k.redirectUri }}</pre>
+                        <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="QI.copy({{ k.redirectUri|json_encode }})">{{ 'Copy'|trans }}</button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if state == 'done' and k.missing %}
+            <div class="qc-alert qc-alert-warning">
+                {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                <div style="flex:1">
+                    {{ 'Not granted:'|trans }} <strong>{{ k.missing|map(m => m|trans)|join(', ') }}</strong>.
+                    {{ 'That step will ask again, or grant it now.'|trans }}
+                    <div style="margin-top:8px"><button type="submit" form="qi-grant-form" class="qc-linkbtn">{{ 'Grant missing permissions'|trans }}</button></div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if state == 'done' and not k.missing %}
+            <div class="qc-alert qc-alert-success">
+                {{ icons.icon('checkCircle', 18, 'qc-alert-icon') }}
+                <div>{{ 'All permissions granted.'|trans }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>

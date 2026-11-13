@@ -1,0 +1,68 @@
+{#
+  Overview w kontekscie "wszystkie sklepy" — 1:1 z prototypu `pg==='overview-all'`
+  (`js/multistore.js` `msCard`): karta kazdego sklepu z "Open" / "Set up", Connection.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% set dots = {ok: 'var(--success)', warn: 'var(--warning)', error: 'var(--danger)', off: 'var(--fg-3)', idle: 'var(--fg-3)'} %}
+
+{% block quince_body %}
+<div class="qc-screen">
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/head.html.twig' with {
+        title: 'Overview', description: 'All shops. Open a shop to see its services and settings.', margin: 24
+    } only %}
+
+    {% include '@Modules/quince_insight/views/templates/admin/overview/_notices.html.twig' with {notices: notices} only %}
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:16px;margin-bottom:20px">
+        {% for s in shopCards %}
+            <div class="qc-grid"{% if s.state == 'off' %} style="opacity:.7"{% endif %}>
+                <div class="qi-head qc-set-row" style="align-items:center">
+                    <div class="qc-hstack" style="gap:8px;flex-wrap:nowrap">
+                        <span class="qc-dot" style="background:{{ dots[s.state]|default('var(--fg-3)') }}"></span>
+                        <span class="qc-set-title">{{ s.name }}</span>
+                    </div>
+                    <a class="qc-linkbtn" href="{{ s.link }}">{{ (s.done ? 'Open' : 'Set up')|trans }}</a>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div>
+                        <div class="qc-mono" style="font-size:var(--text-xs);color:var(--fg-2)">{{ s.url }}</div>
+                        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold);margin-top:8px">{{ s.line.text|trans(s.line.params) }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ s.fact.text|trans(s.fact.params) }}</div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="qc-grid">
+        <div class="qi-head qc-set-row" style="align-items:center">
+            <div class="qc-set-title">{{ 'Connection'|trans }}</div>
+            <a class="qc-linkbtn" href="{{ path('quince_insight_settings') }}">{{ 'Settings'|trans }}</a>
+        </div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:repeat(3,1fr)">
+            <div>
+                <span class="qc-caption">{{ 'Google account'|trans }}</span>
+                <div class="qc-hstack" style="gap:6px;flex-wrap:nowrap">
+                    <span class="qc-dot{{ connection.state == 'ok' ? ' is-on' : '' }}"{% if connection.state == 'error' %} style="background:var(--danger)"{% endif %}></span>
+                    {% if connection.emails %}
+                        <span class="qc-mono">{{ connection.emails|join(', ') }}</span>
+                    {% else %}
+                        <span style="font-size:var(--text-sm)">{{ 'Not connected'|trans }}</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div>
+                <span class="qc-caption">{{ 'Used by'|trans }}</span>
+                <div style="font-size:var(--text-sm)">{{ '%used% of %total% shops'|trans({'%used%': connection.used, '%total%': connection.total}) }}</div>
+            </div>
+            <div>
+                <span class="qc-caption">{{ 'Module'|trans }}</span>
+                <div style="font-size:var(--text-sm)">Quince Insight {{ version }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

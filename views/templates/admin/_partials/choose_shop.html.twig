@@ -1,0 +1,22 @@
+{#
+  Ekran uslugi otwarty w kontekscie "wszystkie sklepy": prosba o wybranie sklepu.
+  1:1 z prototypu (`pg==='chooseshop'`). `renderPanel()` pokazuje to sam — kontroler
+  ekranu nie musi o tym wiedziec.
+
+  Zmienne: title (nazwa ekranu z bocznego paska).
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+<div class="qc-screen">
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ title|trans }}</div>
+        </div>
+    </div>
+    <div class="qc-grid">
+        <div class="qc-empty">
+            {{ icons.icon('layout', 28, 'qc-empty-icon') }}
+            <div class="qc-empty-text">{{ 'Choose a shop to see this screen. Use the shop selector at the top of PrestaShop — every shop has its own settings here.'|trans }}</div>
+        </div>
+    </div>
+</div>

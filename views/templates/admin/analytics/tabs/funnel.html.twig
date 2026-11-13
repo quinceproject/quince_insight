@@ -1,0 +1,99 @@
+{#
+  Zakladka Funnel — 1:1 z prototypu (`an.tab==='funnel'`). Dane: `report` z Reports::funnel()
+  (`eventCount` i `totalUsers` po `eventName` w jednym zapytaniu, Data API v1beta).
+  Decyzja #4: przelacznik „Visitors / Events” (`qc-seg`, jak wybor okresu) nad lejkiem,
+  domyslnie Events; obie miary renderowane na serwerze, przelaczane w przegladarce.
+  Podpisy kroków zaleza od wybranej miary.
+  Prototyp pokazuje "Biggest drop" stale przy kroku produkt -> koszyk; tu wiersz "Biggest drop"
+  wskazuje krok, przed ktorym naprawde odpada najwiecej (raport B §3).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set measures = [
+    {
+        key: 'events',
+        steps: report.steps,
+        biggest: report.biggest,
+        desc: "How many times each step happened, from the shop's own events.",
+        leave: 'Where the path drops most',
+        texts: {
+            1: 'Product → cart: %pct%% fewer add-to-cart events than product views.',
+            2: 'Cart → checkout: %pct%% fewer checkouts started than add-to-cart events.',
+            3: 'Checkout → shipping: %pct%% fewer shipping choices than checkouts started.',
+            4: 'Shipping → payment: %pct%% fewer payment choices than shipping choices.',
+            5: 'Payment → purchase: only %pct%% fewer purchases than payment choices.'
+        }
+    },
+    {
+        key: 'users',
+        steps: report.stepsUsers,
+        biggest: report.biggestUsers,
+        desc: "Visitors who reached each step, from the shop's own events.",
+        leave: 'Where most visitors leave',
+        texts: {
+            1: 'Product → cart: %pct%% of visitors who view a product do not add it to the cart.',
+            2: 'Cart → checkout: %pct%% leave the cart without starting checkout.',
+            3: 'Checkout → shipping: %pct%% leave before choosing shipping.',
+            4: 'Shipping → payment: %pct%% leave before choosing payment.',
+            5: 'Payment → purchase: only %pct%% drop at the last step.'
+        }
+    }
+] %}
+<div x-data="{ measure: 'events' }">
+<div class="qc-seg" style="margin-bottom:16px" role="group" aria-label="{{ 'Funnel measure'|trans }}">
+    <button type="button" class="qc-seg-btn" :class="{'is-active': measure === 'users'}" :aria-pressed="measure === 'users'" @click="measure = 'users'">{{ 'Visitors'|trans }}</button>
+    <button type="button" class="qc-seg-btn is-active" :class="{'is-active': measure === 'events'}" :aria-pressed="measure === 'events'" @click="measure = 'events'">{{ 'Events'|trans }}</button>
+</div>
+{% for m in measures %}
+{% set steps = m.steps %}
+{% set b = m.biggest %}
+<div class="qc-cols" x-show="measure === '{{ m.key }}'"{% if m.key != 'events' %} x-cloak{% endif %}>
+    <div class="qc-grid">
+        <div class="qi-head">
+            <div class="qc-set-title">{{ 'Path to purchase'|trans }}</div>
+            <div class="qc-line" style="margin-top:4px">{{ m.desc|trans }}</div>
+        </div>
+        {% for s in steps %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr 110px">
+                <span class="qc-step"><span class="qc-step-num">{{ loop.index }}</span></span>
+                <div>
+                    <div class="qc-set-row" style="margin-bottom:8px">
+                        <span class="qc-set-title">{{ s.label|trans }}</span>
+                        <span class="qc-mono" style="color:var(--fg-3)">{{ s.event }}</span>
+                    </div>
+                    <div style="display:flex;height:14px;border-radius:99px;overflow:hidden;background:var(--surface-sunken)"><div style="width:{{ max(2, s.pct) }}%;background:var(--accent)"></div></div>
+                </div>
+                <div style="text-align:right">
+                    <div style="font-size:var(--text-sm);font-weight:var(--weight-bold)">{{ s.count }}</div>
+                    <div class="qc-sub">{{ loop.first ? '100%' : '−%pct%% from previous'|trans({'%pct%': s.drop}) }}</div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div class="qc-grid">
+        <div class="qi-head"><div class="qc-set-title">{{ m.leave|trans }}</div></div>
+        {% if b is not null %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr">
+                <span class="qc-badge qc-badge-warning">{{ 'Biggest drop'|trans }}</span>
+                <div class="qc-line">{{ m.texts[b]|trans({'%pct%': steps[b].drop}) }}</div>
+            </div>
+        {% endif %}
+        {% if b != 2 %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr">
+                <span class="qc-badge">{{ 'Checkout'|trans }}</span>
+                <div class="qc-line">{{ m.texts[2]|trans({'%pct%': steps[2].drop}) }}</div>
+            </div>
+        {% endif %}
+        {% if b != 5 %}
+            <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr">
+                <span class="qc-badge qc-badge-success">{{ 'Payment'|trans }}</span>
+                <div class="qc-line">{{ m.texts[5]|trans({'%pct%': steps[5].drop}) }}</div>
+            </div>
+        {% endif %}
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div class="qc-line">{{ 'The funnel needs view_item, add_to_cart, begin_checkout, add_shipping_info, add_payment_info and purchase switched on in Events → Event list.'|trans }}</div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>

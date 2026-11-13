@@ -1,0 +1,49 @@
+{#
+  Krok Summary — 1:1 z prototypu `cur==='summary'`: tabela uslug sklepu (wiersze od
+  wlascicieli krokow, `WizardStep::summary()`), ostrzezenie o feedzie roboczym i blok
+  cronow bez ostatnich uruchomien, "Run now" i "New token".
+  Kilka sklepow: przelacznik sklepu nad krokiem wybiera sklep tabeli i adresow.
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set sm = summaryStep %}
+<div>
+    <div class="qc-head">
+        <div>
+            <div class="qc-head-title">{{ 'All set'|trans }}</div>
+            <div class="qc-head-desc">{{ 'Each service can be changed later from the sidebar or from Settings.'|trans }}</div>
+        </div>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-grid">
+            <div class="qi-head"><div class="qc-set-title">{{ 'Services'|trans }}</div></div>
+            {% for r in sm.rows %}
+                <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr auto">
+                    <span class="qc-dot{{ r.ok ? ' is-on' }}"></span>
+                    <div>
+                        <div style="font-size:var(--text-sm);font-weight:var(--weight-semibold)">{{ r.name|trans }}</div>
+                        <div class="qc-line" style="margin-top:4px">{{ r.text|trans(r.params) }}</div>
+                    </div>
+                    <a class="qc-linkbtn" href="{{ path('quince_insight_wizard', {'step': r.step, 'shop': formShop}) }}">{{ 'Edit'|trans }}</a>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="qc-settings-list">
+            {% if sm.gmcDraft %}
+            <div class="qc-alert qc-alert-warning">
+                {{ icons.icon('alertTriangle', 18, 'qc-alert-icon') }}
+                <div style="flex:1">
+                    <strong>{{ 'Products are not sent to Google yet.'|trans }}</strong>
+                    {{ 'The feed is saved as a draft. After setup, open Merchant Center to choose which products go to Google, adjust mapping and identifiers, review the products with issues — then activate sending.'|trans }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% include '@Modules/quince_insight/views/templates/admin/wizard/_cron.html.twig' with {
+                cron: sm.cron, full: false, shopName: sm.shopName, multistore: multistore
+            } only %}
+        </div>
+    </div>
+</div>

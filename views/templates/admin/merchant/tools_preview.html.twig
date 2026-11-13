@@ -1,0 +1,34 @@
+{#
+  Strona podgladu zakladek agenta M (tylko z config/dev.php) — do sprawdzenia zakladek
+  niezaleznie od ekranu agenta E. W ekranie Merchant Center te same szablony dolacza agent E.
+#}
+{% extends '@Modules/quince_insight/views/templates/admin/layout.html.twig' %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{% block quince_body %}
+<div class="qc-screen">
+    <div class="qc-head" style="margin-bottom:20px">
+        <div>
+            <div class="qc-head-title">{{ 'Merchant Center'|trans }}</div>
+            <div class="qc-head-desc">Developer preview of the Mapping, Rules, Promotions, Shipping and Reports tabs.</div>
+        </div>
+        {% if feeds %}
+        <form method="get" action="{{ path('quince_insight_merchant_tools_preview') }}" class="qc-hstack" style="gap:8px;align-self:flex-start">
+            <input type="hidden" name="tab" value="{{ tab }}">
+            <div class="qc-select-wrap" style="width:240px">
+                <select name="feed" class="qc-field-base qc-select qc-focusable" style="width:100%" onchange="this.form.submit()">
+                    {% for f in feeds %}<option value="{{ f.id }}"{{ feed and f.id == feed.id ? ' selected' : '' }}>{{ f.name ?: f.country ~ ' · ' ~ f.contentLanguage }}</option>{% endfor %}
+                </select>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+    <div class="qc-tabs">
+        {% for key, label in tabNames %}
+            <a class="qc-tab{{ key == tab ? ' is-active' : '' }}" href="{{ path('quince_insight_merchant_tools_preview', {'tab': key, 'feed': feed ? feed.id : null}|filter(v => v is not null)) }}">{{ label|trans }}</a>
+        {% endfor %}
+    </div>
+    {% include '@Modules/quince_insight/views/templates/admin/merchant/tabs/' ~ tab ~ '.html.twig' with tabData %}
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{# Events -> Server-side — 1:1 z prototypu. Zmiany zapisuja sie od razu. #}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+<div class="qc-cols">
+    <div class="qc-settings-list">
+        <div class="qc-grid" x-data="{ purchase: {{ serverPurchase ? 'true' : 'false' }}, refund: {{ serverRefund ? 'true' : 'false' }}, enhanced: {{ serverUserData ? 'true' : 'false' }} }">
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer;border-top:0">
+                <div>
+                    <div class="qc-set-title">{{ 'Send purchases from the server'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Sent when the order is placed — also when the customer never comes back from the payment page. GA4 removes duplicates by order number.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="purchase" @change="qiEvents.save('serverPurchase', purchase)"><span class="qc-toggle-track"></span></span>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div>
+                    <div class="qc-set-title">{{ 'Send refunds and cancellations'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'On a credit slip, a cancellation or a refund status. Partial refunds send only the refunded products and amount; several refunds per order are fine.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="refund" @change="qiEvents.save('serverRefund', refund)"><span class="qc-toggle-track"></span></span>
+            </label>
+            <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                <div>
+                    <div class="qc-set-title">{{ 'Add hashed customer data'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'SHA-256 of e-mail, phone and address. Only with marketing consent.'|trans }}</div>
+                </div>
+                <span class="qc-toggle"><input type="checkbox" x-model="enhanced" @change="qiEvents.save('serverUserData', enhanced)"><span class="qc-toggle-track"></span></span>
+            </label>
+        </div>
+
+        <div class="qc-grid" x-data="qiEvents.server()">
+            <div class="qi-head qc-set-row" style="align-items:center">
+                <div>
+                    <div class="qc-set-title">{{ 'Connection to GA4'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ connectionLine }}</div>
+                </div>
+                <button type="button" class="qc-btn qc-btn-sm qc-btn-outline" @click="test()" :disabled="testState==='running'"{{ canTest ? '' : ' disabled' }}><span class="qc-spinner" x-show="testState==='running'" x-cloak></span> {{ 'Send a test event'|trans }}</button>
+            </div>
+            <div class="qc-grid-row qi-row" style="grid-template-columns:1fr" x-show="testState==='ok'" x-cloak>
+                <div class="qc-alert qc-alert-success">
+                    {{ icons.message('success', 18, 'qc-alert-icon') }}
+                    <div x-text="message"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="qc-grid">
+        <div class="qi-head"><div class="qc-set-title">{{ 'When a purchase is not sent'|trans }}</div></div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">1</span></span><div><div class="qc-set-title">{{ 'No analytics consent'|trans }}</div><div class="qc-line" style="margin-top:4px">{{ 'The customer refused analytics. The order is logged, nothing goes to Google.'|trans }}</div></div></div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">2</span></span><div><div class="qc-set-title">{{ 'No GA session'|trans }}</div><div class="qc-line" style="margin-top:4px">{{ 'The browser had no _ga cookie (blocker, other device). The module never makes up a visitor ID — it would split the visit in GA4.'|trans }}</div></div></div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">3</span></span><div><div class="qc-set-title">{{ 'Sending switched off'|trans }}</div><div class="qc-line" style="margin-top:4px">{{ 'Only the browser event from the confirmation page counts.'|trans }}</div></div></div>
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div class="qc-line">{{ 'Each case is visible in the Order log with its reason.'|trans }}</div>
+        </div>
+    </div>
+</div>

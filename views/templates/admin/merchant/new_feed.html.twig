@@ -1,0 +1,137 @@
+{# Widok Add feed — 1:1 z prototypu (gm.tab==='new'); zakladki ekranu schowane. #}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set nf = newFeed %}
+<div class="qc-settings-list" x-data="QIMerchant.newFeed({{ {
+        createUrl: path('quince_insight_merchant_feed_create'),
+        cancelUrl: nf.cancelUrl,
+        languages: nf.languages,
+        currencies: nf.currencies,
+        suggest: nf.suggest,
+        taken: nf.taken,
+        form: nf.defaults|merge({copy_filters: true, copy_mapping: true, copy_rules: true}),
+        hasFeeds: feedList|length > 0
+     }|json_encode }})">
+    <div class="qc-head" style="margin-bottom:0">
+        <div>
+            <div class="qc-set-title" style="font-size:var(--text-lg)">{{ 'New feed'|trans }}</div>
+            <div class="qc-head-desc">{{ 'One feed per country and language. Products, filters and rules can differ between feeds.'|trans }}</div>
+        </div>
+    </div>
+
+    <div class="qc-cols">
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Where it is shown'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div class="qc-fieldgrid">
+                        <div class="qc-span">
+                            <label class="qc-label">{{ 'Country'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select class="qc-field-base qc-select qc-focusable" x-model="form.country" @change="countryChanged()">
+                                    {% for iso, name in nf.countries %}<option value="{{ iso }}">{{ name }}</option>{% endfor %}
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="qc-label">{{ 'Language'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select class="qc-field-base qc-select qc-focusable" x-model.number="form.id_lang">
+                                    {% for l in nf.languages %}<option value="{{ l.id }}">{{ l.name }}</option>{% endfor %}
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                            <div class="qc-error-text" x-show="!langInShop()">{{ icons.icon('alertCircle', 14) }} {{ 'Not active in the shop — products have no texts in this language.'|trans }}</div>
+                        </div>
+                        <div>
+                            <label class="qc-label">{{ 'Currency'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select class="qc-field-base qc-select qc-focusable" x-model.number="form.id_currency">
+                                    {% for c in nf.currencies %}<option value="{{ c.id }}">{{ c.iso }}</option>{% endfor %}
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                            <div class="qc-error-text" x-show="!currencyInShop()">{{ icons.icon('alertCircle', 14) }} {{ 'Not active in the shop — prices cannot be converted.'|trans }}</div>
+                        </div>
+                    </div>
+                    <div class="qc-alert qc-alert-danger" x-show="exists()">
+                        {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                        <div>{{ 'A feed for this country and language already exists. Change one of them.'|trans }}</div>
+                    </div>
+                </div>
+                <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer">
+                    <div class="qc-set-title">{{ 'Prices include tax'|trans }}</div>
+                    <span class="qc-toggle"><input type="checkbox" x-model="form.with_tax"><span class="qc-toggle-track"></span></span>
+                </label>
+            </div>
+
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'Product data'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div class="qc-fieldgrid">
+                        <div class="qc-span">
+                            <label class="qc-label">{{ 'Title'|trans }}</label>
+                            <input type="text" class="qc-field-base qc-focusable qc-mono" maxlength="255" x-model="form.title_template">
+                            <div class="qc-hint">{{ 'Variables: {name}, {brand}, {category}, {reference}'|trans }}</div>
+                        </div>
+                        <div>
+                            <label class="qc-label">{{ 'Description from'|trans }}</label>
+                            <div class="qc-select-wrap">
+                                <select class="qc-field-base qc-select qc-focusable" x-model="form.description_source">
+                                    <option value="description_short">{{ 'Short description'|trans }}</option>
+                                    <option value="description">{{ 'Full description'|trans }}</option>
+                                    <option value="both">{{ 'Both, combined'|trans }}</option>
+                                </select>
+                                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                            </div>
+                        </div>
+                        <div>
+                            <label class="qc-label">{{ 'Offer ID prefix'|trans }}</label>
+                            <input type="text" class="qc-field-base qc-focusable qc-mono" maxlength="20" x-model="form.offer_prefix">
+                            <div class="qc-hint">{{ 'Optional. Do not change it later.'|trans }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="qc-settings-list">
+            <div class="qc-grid">
+                <div class="qi-head">
+                    <div class="qc-set-title">{{ 'Start from an existing feed'|trans }}</div>
+                    <div class="qc-line" style="margin-top:4px">{{ 'Copied once — after that the feeds are independent.'|trans }}</div>
+                </div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+                    <div class="qc-select-wrap">
+                        <select class="qc-field-base qc-select qc-focusable" x-model.number="form.copy_from">
+                            <option value="0">{{ 'Start empty'|trans }}</option>
+                            {% for f in feedList %}<option value="{{ f.id }}">{{ f.label }}</option>{% endfor %}
+                        </select>
+                        {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+                    </div>
+                </div>
+                {% for o in [['copy_filters', 'Filters — which products go to Google'], ['copy_mapping', 'Mapping — identifiers, attributes, categories'], ['copy_rules', 'Rules — exclusions, prices, custom labels']] %}
+                    <label class="qc-grid-row qi-row" style="grid-template-columns:1fr auto;cursor:pointer" :class="{'qc-disabled-area is-off': !form.copy_from}">
+                        <span class="qc-set-title">{{ o[1]|trans }}</span>
+                        <span class="qc-toggle"><input type="checkbox" x-model="form.{{ o[0] }}"><span class="qc-toggle-track"></span></span>
+                    </label>
+                {% endfor %}
+            </div>
+
+            <div class="qc-grid">
+                <div class="qi-head"><div class="qc-set-title">{{ 'What happens'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">1</span></span><div class="qc-line" x-text="{{ 'A data source “Quince Insight · %country% · %lang%” is created in Merchant Center.'|trans|json_encode }}.replace('%country%', form.country).replace('%lang%', langIso())"></div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">2</span></span><div class="qc-line">{{ 'The feed is saved as a draft — no products are sent.'|trans }}</div></div>
+                <div class="qc-grid-row qi-row" style="grid-template-columns:auto 1fr"><span class="qc-step"><span class="qc-step-num">3</span></span><div class="qc-line">{{ 'You check what is sent and start sending in Overview, like the first feed.'|trans }}</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="qc-actions" style="margin-top:0">
+        <a class="qc-btn qc-btn-text" :href="cancelUrl || '#'" x-show="cancelUrl">{{ 'Cancel'|trans }}</a>
+        <button type="button" class="qc-btn qc-btn-primary" @click="create()" :disabled="exists() || !langInShop() || !currencyInShop() || busy">
+            <span class="qc-spinner" x-show="busy"></span> {{ 'Create draft feed'|trans }}
+        </button>
+    </div>
+</div>

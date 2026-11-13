@@ -1,0 +1,33 @@
+{#
+  Komunikaty nad trescia zakladki: blad Google (z ostatnimi znanymi danymi albo bez)
+  i flagi jakosci z `metadata` odpowiedzi GA4 (research/05 §C.4).
+  Zmienne: report (dane zakladki z kontrolera).
+#}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% set alert = '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' %}
+{% set q = report.quality|default({}) %}
+{% if report.errorMessage or q.thresholded|default(false) or q.sampled|default(null) is not null or q.other|default(false) or q.restricted|default(false) %}
+<div class="qc-stack" style="gap:10px;margin-bottom:16px">
+    {% if report.errorMessage %}
+        {% if report.stale %}
+            {% include alert with {level: 'warning', text: 'Google did not respond — showing the data saved %date%. %message%', params: {'%date%': report.updatedAt|default(''), '%message%': report.errorMessage}} only %}
+        {% else %}
+            {% include alert with {level: 'danger', text: '%message%', params: {'%message%': report.errorMessage}} only %}
+        {% endif %}
+    {% endif %}
+    {% if report.quality is defined %}
+        {% if report.quality.thresholded %}
+            {% include alert with {level: 'info', text: 'GA4 hides some rows to protect visitors’ privacy (data thresholds), so numbers here can be lower than the real totals.'} only %}
+        {% endif %}
+        {% if report.quality.sampled is not null %}
+            {% include alert with {level: 'info', text: 'This report is based on a sample of %pct%% of the data.', params: {'%pct%': report.quality.sampled}} only %}
+        {% endif %}
+        {% if report.quality.other %}
+            {% include alert with {level: 'info', text: 'GA4 grouped part of the data into “(other)” — some rows are not shown separately.'} only %}
+        {% endif %}
+        {% if report.quality.restricted %}
+            {% include alert with {level: 'warning', text: 'Your role in GA4 does not allow seeing revenue — revenue shows as 0.'} only %}
+        {% endif %}
+    {% endif %}
+</div>
+{% endif %}

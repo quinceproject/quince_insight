@@ -1,0 +1,56 @@
+{#
+  Stopka listy: numery stron, licznik "1-25 of 137" i rozmiar strony — uklad z prototypu.
+  Pokazuje sie tylko wtedy, gdy lista nie miesci sie na jednej stronie.
+
+  Zmienne: pagination (wynik `Ui\Pagination::resolve()`), route (nazwa trasy ekranu),
+  params (pozostale parametry adresu: zakladka, filtry — bez `page` i `per`).
+  Zmiana filtra ma wracac na strone 1: formularz filtra po prostu nie przenosi `page`.
+
+  Uzycie:
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/listfoot.html.twig' with {
+        pagination: pagination, route: 'quince_insight_merchant', params: {'tab': 'products', 'feed': feed.id}
+    } only %}
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{% if pagination.visible %}
+    {% set base = params|default({})|merge({'per': pagination.per}) %}
+    <div class="qc-listfoot">
+        <div class="qc-pagination">
+            {% if pagination.page > 1 %}
+                <a class="qc-page-btn qi-page-link" href="{{ path(route, base|merge({'page': pagination.page - 1})) }}" aria-label="{{ 'Previous page'|trans }}">&lsaquo;</a>
+            {% else %}
+                <span class="qc-page-btn qi-page-link" aria-disabled="true">&lsaquo;</span>
+            {% endif %}
+
+            {% for n in pagination.numbers %}
+                {% if n is null %}
+                    <span class="qc-page-btn qi-page-link" aria-hidden="true">&hellip;</span>
+                {% else %}
+                    <a class="qc-page-btn qi-page-link{{ n == pagination.page ? ' qc-active' : '' }}"
+                       href="{{ path(route, base|merge({'page': n})) }}"{% if n == pagination.page %} aria-current="page"{% endif %}>{{ n }}</a>
+                {% endif %}
+            {% endfor %}
+
+            {% if pagination.page < pagination.pages %}
+                <a class="qc-page-btn qi-page-link" href="{{ path(route, base|merge({'page': pagination.page + 1})) }}" aria-label="{{ 'Next page'|trans }}">&rsaquo;</a>
+            {% else %}
+                <span class="qc-page-btn qi-page-link" aria-disabled="true">&rsaquo;</span>
+            {% endif %}
+        </div>
+
+        <div class="qc-hstack" style="gap:12px;flex-wrap:nowrap">
+            <span class="qc-line">{{ '%from%–%to% of %total%'|trans({'%from%': pagination.from, '%to%': pagination.to, '%total%': pagination.total}) }}</span>
+            {# Wartoscia opcji jest gotowy adres (z `_token`) — zmiana rozmiaru strony wraca na strone 1. #}
+            <div class="qc-select-wrap" style="width:140px">
+                <select class="qc-field-base qc-field-sm qc-select qc-focusable" aria-label="{{ 'Rows per page'|trans }}"
+                        onchange="window.location.href = this.value">
+                    {% for option in pagination.perOptions %}
+                        <option value="{{ path(route, params|default({})|merge({'per': option})) }}"{{ option == pagination.per ? ' selected' : '' }}>{{ '%count% per page'|trans({'%count%': option}) }}</option>
+                    {% endfor %}
+                </select>
+                {{ icons.icon('chevronDown', 14, 'qc-select-chevron') }}
+            </div>
+        </div>
+    </div>
+{% endif %}

@@ -1,0 +1,77 @@
+{#
+  Pasek postepu zadania w tle — 1:1 z prototypu (index.html, "postep zadania (wspolne)"):
+  tytul Working… / Done / Stopped z procentem, pasek, lista krokow, blad.
+
+  Komponent Alpine `QI.job` popycha zadanie zapytaniem `job_tick` co sekunde; gdy karta
+  zniknie, zadanie dokancza cron.
+
+  Zmienne:
+    job      — `JobStatus::toArray()` trwajacego albo ostatniego zadania; null = karta ukryta
+               do chwili startu zadania
+    type     — opcjonalnie typ zadania (np. 'gtm.apply'): komponent przejmuje tylko zadania tego typu
+    onDone   — opcjonalnie nazwa funkcji globalnej wolanej po zakonczeniu (dostaje obiekt zadania)
+    reload   — przeladuj strone po udanym zakonczeniu (domyslnie nie)
+
+  Lista krokow: `items` z zadania (`JobProgress::$state['items']`). Gdy zadanie jej nie
+  podaje, pokazuje sie jeden wiersz z biezacym komunikatem (`message`).
+
+  Uzycie:
+    {% include '@Modules/quince_insight/views/templates/admin/_partials/job_progress.html.twig' with {
+        job: job, type: 'core.demo', reload: true
+    } only %}
+
+  Start zadania z przycisku na tej samej stronie:
+    QI.post(startUrl).then(r => r.ok && QI.jobStart(r.job))
+  — komponent nasluchuje zdarzenia `qi:job` i przejmuje nowe zadanie bez przeladowania.
+  Anulowanie (gdy ekran go potrzebuje): przycisk w tym samym `x-data` z `@click="cancel()"`.
+#}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+{# Teksty zadania skladaja uslugi bez tlumacza — pierwszy stan tlumaczymy tutaj, kolejne JobController. #}
+{% set qiJob = job|default(null) %}
+{% if qiJob is iterable and qiJob.items is defined and qiJob.items is iterable %}
+    {% set qiJob = qiJob|merge({
+        items: qiJob.items|map(i => i|merge({text: (i.text|default(''))|trans(i.params|default({})), note: (i.note|default('')) ? i.note|trans : ''})),
+        message: (qiJob.message|default('')) ? qiJob.message|trans : ''
+    }) %}
+{% endif %}
+<div x-data="QI.job({{ {
+        job: qiJob,
+        type: type|default(''),
+        tickUrl: path('quince_insight_job_tick'),
+        cancelUrl: path('quince_insight_job_cancel'),
+        onDone: onDone|default(''),
+        reload: reload|default(false)
+     }|json_encode }})"
+     x-show="job" x-cloak class="qc-grid" style="margin-top:20px">
+    <div class="qi-head">
+        <div class="qc-set-row" style="align-items:center">
+            <div class="qc-set-title" x-text="state === 'done' ? {{ 'Done'|trans|json_encode }} : (state === 'error' ? {{ 'Stopped'|trans|json_encode }} : {{ 'Working…'|trans|json_encode }})"></div>
+            <span class="qc-line" x-text="percent + '%'"></span>
+        </div>
+        <div style="display:flex;height:14px;border-radius:99px;overflow:hidden;margin-top:12px;background:var(--surface-sunken)">
+            <div :style="'width:' + percent + '%;background:' + (state === 'error' ? 'var(--danger)' : 'var(--accent)') + ';transition:width var(--dur) var(--ease)'"></div>
+        </div>
+    </div>
+    <template x-for="(it, n) in (items.length ? items : (message ? [{text: message, st: state === 'done' ? 'ok' : (state === 'error' ? 'err' : 'run'), note: ''}] : []))" :key="n">
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr auto">
+            <div>
+                <div style="font-size:var(--text-sm)" :style="it.st === 'wait' ? {color: 'var(--fg-3)'} : {}" x-text="it.text"></div>
+                <div class="qc-line" style="margin-top:4px;color:var(--warning)" x-show="it.note" x-text="it.note"></div>
+            </div>
+            <span>
+                <span class="qc-spinner" style="color:var(--accent)" x-show="it.st === 'run'"></span>
+                <span style="color:var(--success)" x-show="it.st === 'ok'">{{ icons.icon('check', 14) }}</span>
+                <span style="color:var(--danger)" x-show="it.st === 'err'">{{ icons.icon('alertCircle', 14) }}</span>
+            </span>
+        </div>
+    </template>
+    <template x-if="state === 'error'">
+        <div class="qc-grid-row qi-row" style="grid-template-columns:1fr">
+            <div class="qc-alert qc-alert-danger">
+                {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+                <div style="flex:1" x-text="error || {{ 'The task was stopped.'|trans|json_encode }}"></div>
+            </div>
+        </div>
+    </template>
+</div>

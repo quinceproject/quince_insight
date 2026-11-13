@@ -1,0 +1,131 @@
+{#
+  Layout bazowy panelu Quince Insight — powloka 1:1 z Quince CMP i z prototypu.
+
+  To wlasna kopia layoutu Quince, nie rozszerzenie cudzego: modul ma dzialac w sklepie
+  bez `quince_engine` i bez `quince_cmp`, a `{% extends %}` z cudzego katalogu wywraca
+  sie przy jego braku na kazdej podstronie naraz.
+
+  Ekran podrzedny dostarcza bloki:
+    quince_body          — tresc ekranu (zwykle `<div class="qc-screen">…`)
+    quince_actions       — przyciski przyklejonego paska akcji (pusty = paska nie ma)
+    quince_actions_info  — tekst po lewej stronie paska akcji
+    quince_styles        — dodatkowe arkusze ekranu (`views/css/pages/<ekran>.css`)
+    quince_scripts       — skrypty ekranu (`views/js/admin/<ekran>.js`); laduja sie
+                           PO panel.js i PRZED Alpine, wiec moga rejestrowac komponenty
+    quince_sidenav       — caly boczny pasek (kreator podmienia go na liste krokow)
+    quince_nav_current   — nazwa biezacej strony na przycisku nawigacji telefonu
+
+  Zmienne od `PanelController::renderPanel()`:
+    nav, navKey, navTitle, shopName, multistore, allShops, idShop, qcVersion, fakeGoogle
+
+  Na `.qc-root`: `data-qi-csrf` (token dla `QI.post`) i `data-qi-i18n` (teksty komunikatow JS).
+
+  Jezykiem bazowym jest angielski; napisy ida przez `trans` w domenie
+  Modules.Quinceinsight.Admin.
+#}
+{% extends '@PrestaShop/Admin/layout.html.twig' %}
+{% import '@Modules/quince_insight/views/templates/admin/_macros/icons.html.twig' as icons %}
+
+{% trans_default_domain 'Modules.Quinceinsight.Admin' %}
+
+{# Znacznik wersji przy kazdym pliku. W trybie deweloperskim znacznik czasu, na
+   produkcji wersja modulu z czasem zmiany najswiezszego pliku. #}
+{% set qcVer = '?v=' ~ (app.debug ? 'now'|date('U') : qcVersion|default('0.1.0')) %}
+{% set qiAssets = '../modules/quince_insight/views/' %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset(qiAssets ~ 'css/tokens/base.css') ~ qcVer }}">
+    <link rel="stylesheet" href="{{ asset(qiAssets ~ 'css/tokens/colors.css') ~ qcVer }}">
+    <link rel="stylesheet" href="{{ asset(qiAssets ~ 'css/tokens/typography.css') ~ qcVer }}">
+    <link rel="stylesheet" href="{{ asset(qiAssets ~ 'css/tokens/spacing.css') ~ qcVer }}">
+    <link rel="stylesheet" href="{{ asset(qiAssets ~ 'css/tokens/components.css') ~ qcVer }}">
+    <link rel="stylesheet" href="{{ asset(qiAssets ~ 'css/panel.css') ~ qcVer }}">
+    <link rel="stylesheet" href="{{ asset(qiAssets ~ 'css/insight.css') ~ qcVer }}">
+    {% block quince_styles %}{% endblock %}
+{% endblock %}
+
+{% block javascripts %}
+    {{ parent() }}
+    {# Kolejnosc ma znaczenie: panel.js definiuje `QI` (w tym komponent `QI.job`),
+       skrypty ekranu moga z niego korzystac, a Alpine startuje na koncu i widzi wszystko. #}
+    <script src="{{ asset(qiAssets ~ 'js/panel.js') ~ qcVer }}" defer></script>
+    {% block quince_scripts %}{% endblock %}
+    <script src="{{ asset(qiAssets ~ 'js/alpine.min.js') ~ qcVer }}" defer></script>
+{% endblock %}
+
+{% block content %}
+{% set navItems = nav|default([]) %}
+
+{# Token panelu dla `QI.post` (naglowek X-CSRF-Token). Siedzi na korzeniu panelu,
+   bo skrypty nie znaja osobnego tokenu dla kazdego adresu. #}
+{# Teksty komunikatow `QI` (panel.js nie ma wlasnych tlumaczen). #}
+{% set qiI18n = {
+    'network': 'No connection to the shop. Check your network and try again.'|trans,
+    'denied': 'You do not have permission to do this, or the page has expired. Reload the page and try again.'|trans,
+    'failed': 'Something went wrong. Reload the page and try again.'|trans,
+    'copied': 'Copied'|trans,
+    'copyFailed': 'Could not copy. Select the text and copy it manually.'|trans
+} %}
+<div class="qc-root" data-qi-csrf="{{ csrf_token('quince_insight_panel') }}" data-qi-i18n="{{ qiI18n|json_encode }}">
+    <div class="qc-shell">
+
+        {# Telefon: zamiast paska z ikonami przycisk z nazwa biezacej strony,
+           po dotknieciu pelna lista. Na duzym ekranie ukryty. #}
+        <button type="button" class="qc-nav-mobile" aria-expanded="false" aria-controls="qc-sidenav">
+            <span class="qc-nav-label">{% block quince_nav_current %}{{ navTitle|default('Quince Insight')|trans }}{% endblock %}</span>
+            <svg class="qc-nav-mobile-arrow" width="14" height="14" viewBox="0 0 16 16" fill="none"
+                 stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+        </button>
+
+        {% block quince_sidenav %}
+        <nav class="qc-sidenav" id="qc-sidenav" aria-label="Quince Insight">
+            {# Multistore: nad lista nazwa sklepu, ktorego dotycza dane. #}
+            {% if multistore|default(false) %}
+                <div class="qc-sidenav-section">{{ allShops|default(false) ? 'All shops'|trans : shopName|default('') }}</div>
+            {% endif %}
+
+            {% for item in navItems %}
+                {% if item.off %}
+                    {# Usluga niewlaczona: wyszarzona, ale klikalna — prowadzi do kroku kreatora;
+                       w kontekscie "wszystkie sklepy" do kroku Shops (wybor sklepu, decyzja #23). #}
+                    <a href="{{ allShops|default(false) ? path('quince_insight_wizard') : path('quince_insight_wizard', {'step': item.step}) }}" class="qc-nav-item qi-off">
+                        {{ icons.icon(item.icon) }}
+                        <span class="qc-nav-label">{{ item.label|trans }}</span>
+                        <span class="qc-nav-soon">{{ 'Connect'|trans }}</span>
+                    </a>
+                {% else %}
+                    <a href="{{ path(item.route) }}"
+                       class="qc-nav-item{{ navKey|default('') == item.key ? ' qc-active' : '' }}">
+                        {{ icons.icon(item.icon) }}
+                        <span class="qc-nav-label">{{ item.label|trans }}</span>
+                    </a>
+                {% endif %}
+            {% endfor %}
+        </nav>
+        {% endblock %}
+
+        <div class="qc-content">
+            {% block quince_intro %}{% endblock %}
+
+            {% block quince_body %}{% endblock %}
+
+            {# Blok `quince_actionbar` pozwala ekranowi swiadomie zgasic pasek albo
+               podmienic go na wlasny. Sprawdzenie pustki gwarantuje, ze pusty pasek
+               nie wyjdzie nawet wtedy, gdy ktos o bloku zapomni. #}
+            {% block quince_actionbar %}
+                {% set qcAkcje %}{% block quince_actions %}{% endblock %}{% endset %}
+                {% set qcAkcjeInfo %}{% block quince_actions_info %}{% endblock %}{% endset %}
+
+                {% if qcAkcje|trim is not empty or qcAkcjeInfo|trim is not empty %}
+                    <div class="qc-actionbar">
+                        <div class="qc-actionbar-info">{{ qcAkcjeInfo }}</div>
+                        {{ qcAkcje }}
+                    </div>
+                {% endif %}
+            {% endblock %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}
