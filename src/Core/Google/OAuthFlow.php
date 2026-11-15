@@ -39,6 +39,15 @@ final class OAuthFlow
 
     private const STATE_TTL = 600;
 
+    /** Ciasteczko wiążące logowanie z przeglądarką, która je zaczęła. */
+    private const BIND_COOKIE = 'qi_oauth_bind';
+
+    /** Wartość ciasteczka dla danego `state`: podpis kluczem sklepu, bez zapisu w bazie. */
+    private static function binding(string $state): string
+    {
+        return hash_hmac('sha256', 'quince_insight_oauth|' . $state, _COOKIE_KEY_);
+    }
+
     /** Zapas przed wygasnieciem tokenu dostepu, przy ktorym odswiezamy z wyprzedzeniem. */
     private const REFRESH_MARGIN = 60;
 
@@ -86,6 +95,18 @@ final class OAuthFlow
             'scopes' => pSQL(implode(' ', $scopes)),
             'return_url' => pSQL(mb_substr($returnUrl, 0, 1000), true),
             'expires_at' => pSQL(Clock::at(self::STATE_TTL)),
+        ]);
+
+        // Wiąże logowanie z przeglądarką, która je zaczęła. `state` stoi w adresie,
+        // więc wycieka razem z nim (wklejony w czacie, zrzut ekranu); kto go ma,
+        // mógłby dokończyć logowanie własnym kontem Google. Ciasteczka nie ma.
+        setcookie(self::BIND_COOKIE, self::binding($state), [
+            'expires' => time() + self::STATE_TTL,
+            'path' => '/',
+            'secure' => \Tools::usingSecureMode(),
+            'httponly' => true,
+            // Powrót z Google to zwykłe przejście GET z innej witryny: Lax je przepuszcza.
+            'samesite' => 'Lax',
         ]);
 
         if (Dev::fakeGoogle()) {
@@ -136,6 +157,18 @@ final class OAuthFlow
 
         if (!self::stateClaimed($row, $state, $deleted, Clock::now())) {
             throw new \RuntimeException('Sign-in link expired.');
+        }
+
+        // Powrót musi trafić do tej samej przeglądarki, w której logowanie się
+        // zaczęło (ciasteczko z `authUrl()`). Wpis `state` jest już zużyty,
+        // więc obca przeglądarka nie dostanie drugiej próby.
+        $wiazanie = (string) ($_COOKIE[self::BIND_COOKIE] ?? '');
+        setcookie(self::BIND_COOKIE, '', ['expires' => time() - 3600, 'path' => '/']);
+
+        if (!hash_equals(self::binding($state), $wiazanie)) {
+            Log::write((int) $row['id_shop'], 'core', Log::WARNING, 'Google sign-in was finished in a different browser than it started in, so it was refused.');
+
+            throw new \RuntimeException('Sign-in started in another browser.');
         }
 
         $idConnection = (int) $row['id_connection'];

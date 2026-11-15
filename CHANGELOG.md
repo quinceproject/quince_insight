@@ -4,6 +4,16 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-11-15
+
+### Security
+
+- **Google sign-in finishes only in the browser that started it.** Starting the
+  sign-in sets a short-lived cookie, and the return from Google is refused without it.
+  Before, anyone who got hold of the sign-in link within its ten minutes (pasted in a
+  chat, on a screenshot) could finish the sign-in with their own Google account and
+  connect the shop to it.
+
 ## [0.1.1] - 2026-11-15
 
 ### Security

@@ -45,10 +45,11 @@ class Quince_InsightOauthModuleFrontController extends ModuleFrontController
                 'error' => (string) Tools::getValue('error', ''),
             ]);
         } catch (Throwable $e) {
-            // Nieznany albo przeterminowany `state`: nie wiemy, dokad wrocic, wiec
-            // konczymy tutaj zwyklym komunikatem.
-            $this->strona(400, '<p>This sign-in link has expired or was already used. '
-                . 'Go back to the shop admin and start the Google sign-in again.</p>');
+            // Nieznany, przeterminowany albo otwarty w innej przegladarce `state`:
+            // nie wiemy, dokad wrocic, wiec konczymy tutaj zwyklym komunikatem.
+            $this->strona(400, '<p>This sign-in link has expired, was already used, or was opened in a '
+                . 'different browser than the one that started it. Go back to the shop admin and start '
+                . 'the Google sign-in again.</p>');
         }
 
         $adres = json_encode($returnUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_SLASHES);
