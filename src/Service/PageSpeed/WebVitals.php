@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\PageSpeed;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Core Web Vitals: progi, oceny i odczyt odpowiedzi CrUX / PageSpeed Insights.
  *

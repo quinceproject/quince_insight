@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Ui;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Zestaw ikon panelu — ten sam co w makrze `_macros/icons.html.twig` i w prototypie (`ICONS`).
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Instalacja i odinstalowanie danych modulu (tabele, wiersze sklepow, pliki).
  *

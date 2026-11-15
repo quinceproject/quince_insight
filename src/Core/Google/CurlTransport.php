@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Google;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Wywolania HTTP przez cURL — jedyne miejsce w module, ktore laczy sie z siecia.
  *

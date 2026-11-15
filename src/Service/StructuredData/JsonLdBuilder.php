@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\StructuredData;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Budowa obiektow JSON-LD z danych juz zebranych ze sklepu (tablice) — czysta logika,
  * bez PrestaShop i bez bazy, testowana jednostkowo.

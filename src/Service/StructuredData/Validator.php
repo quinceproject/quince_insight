@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\StructuredData;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Sprawdzenie pol wymaganych przez Google (research/05 §K) przed wypisaniem bloku.
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole\Sitemap;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Zapis plikow mapy porcjami, z podzialem i wznowieniem miedzy krokami zadania.
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Task;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Core\Google\ConnectionRepository;
 use Quince\Insight\Core\Google\GoogleAuthException;
 use Quince\Insight\Core\Google\NotConnectedException;

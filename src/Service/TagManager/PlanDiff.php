@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\TagManager;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Service\TagManager\Dto\Plan;
 
 /**

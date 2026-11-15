@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Kontrola oferty przed wysylka (bez Google). Bledy danych z `insert` nie wracaja — Google
  * zglasza je dopiero w statusie produktu (research/04 §18) — wiec to, co da sie sprawdzic

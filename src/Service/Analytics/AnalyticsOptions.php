@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Analytics;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Klucze ustawien uslugi (per sklep) — Analytics. Odczyt i zapis przez `Core\Options`.
  *

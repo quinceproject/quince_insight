@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\PageSpeed;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Core\Dto\AttentionItem;
 use Quince\Insight\Core\Dto\CronTask;
 use Quince\Insight\Core\Dto\ServiceHealth;

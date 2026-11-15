@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Google\Dto;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Polaczenie z Google: projekt Google Cloud + jedno zalogowane konto.
  *

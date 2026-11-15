@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Verification;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Core\ShopContext;
 use Quince\Insight\Core\WizardStep;
 

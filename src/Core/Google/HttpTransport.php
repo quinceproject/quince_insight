@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Google;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Jedno wywolanie HTTP. Trzy implementacje: `CurlTransport` (siec), `FakeTransport`
  * (atrapy z `tests/fixtures/google/`) i podmiany w testach jednostkowych.

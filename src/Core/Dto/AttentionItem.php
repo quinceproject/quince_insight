@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Dto;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Pozycja listy "Needs attention" na pulpicie.
  */

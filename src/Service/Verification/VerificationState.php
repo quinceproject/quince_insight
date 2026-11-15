@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Verification;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Czysta logika weryfikacji witryny: czy zweryfikowany zasob obejmuje adres sklepu,
  * odczyt tokenu META, zapis tagu. Bez bazy i bez Google.

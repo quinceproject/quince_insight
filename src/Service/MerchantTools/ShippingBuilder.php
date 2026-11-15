@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\MerchantTools;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Przewoznicy PrestaShop → `ShippingSettings.services[]` Merchant API (research/04 §12). Bez bazy.
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Core\Container;
 use Quince\Insight\Core\Dto\AttentionItem;
 use Quince\Insight\Core\Dto\CronTask;

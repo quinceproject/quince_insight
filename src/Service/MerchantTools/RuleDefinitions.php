@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\MerchantTools;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Typy regul, pola warunkow, operatory i akcje — jedno miejsce dla edytora i silnika.
  *

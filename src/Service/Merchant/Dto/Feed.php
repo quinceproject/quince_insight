@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant\Dto;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Feed Merchant Center — wiersz tabeli `feed` (ARCHITEKTURA §7.6).
  *

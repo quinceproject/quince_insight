@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Opcjonalne rozszerzenie `ServiceModule`: wlasne kroki instalacji i odinstalowania uslugi.
  *

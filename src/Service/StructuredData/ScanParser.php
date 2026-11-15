@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\StructuredData;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Odczyt danych strukturalnych z HTML strony tak, jak czyta je Google: bloki
  * `<script type="application/ld+json">`, typy najwyzszego poziomu (takze w `@graph`)

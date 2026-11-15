@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Events;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Budowa danych e-commerce GA4 (produkty, zakup, zwrot) z tablic zebranych ze sklepu.
  * Czysta logika — ta sama dla dataLayer (przegladarka) i Measurement Protocol (serwer),

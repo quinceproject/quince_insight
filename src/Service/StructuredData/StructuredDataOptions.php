@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\StructuredData;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Klucze ustawien uslugi (per sklep) — dane strukturalne. Odczyt i zapis przez `Core\Options`.
  *

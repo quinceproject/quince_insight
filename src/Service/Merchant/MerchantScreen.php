@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Db;
 use Quince\Insight\Core\JobRunner;
 use Quince\Insight\Core\Options;

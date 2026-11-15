@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Task;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Db;
 use Quince\Insight\Core\Clock;
 use Quince\Insight\Core\CoreOptions;

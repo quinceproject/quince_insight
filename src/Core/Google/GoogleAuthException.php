@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Google;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Logowanie do Google przestalo dzialac: token odswiezania wygasl albo zostal cofniety,
  * albo token dostepu jest odrzucany takze po odswiezeniu. Wymaga ponownego logowania.

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\StructuredData;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Pobranie strony wlasnego sklepu po HTTP (skan danych strukturalnych) — tak, jak widzi ja
  * odwiedzajacy bez ciasteczek.

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Identyfikator oferty i nazwy zasobow Merchant API v1 (research/04 §7.2).
  *

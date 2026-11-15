@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Core\Google\GoogleApiException;
 use Quince\Insight\Core\Google\NotConnectedException;
 use Quince\Insight\Core\JobRunner;

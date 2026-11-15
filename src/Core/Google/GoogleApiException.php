@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Google;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Blad odpowiedzi API Google (albo brak odpowiedzi — wtedy `httpCode() === 0`).
  *

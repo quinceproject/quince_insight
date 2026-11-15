@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Analytics;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Tresci zadan GA4 Data API v1beta dla ekranu Analytics (research/05 §C.2). Czysta logika.
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Wizard;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Klucze ustawien kreatora (per sklep). Odczyt i zapis przez `Core\Options`.
  */

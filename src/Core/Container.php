@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Minimalny kontener dla kodu dzialajacego poza panelem (front, hooki, cron).
  *

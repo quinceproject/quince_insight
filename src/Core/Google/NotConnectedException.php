@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Google;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Sklep nie ma polaczenia z Google, polaczenie wymaga ponownego logowania albo
  * brakuje klucza API. To stan do pokazania ("Connect"), nie awaria.

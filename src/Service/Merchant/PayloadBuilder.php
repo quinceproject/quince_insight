@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * `ProductData::$fields` → tresc `ProductInput` Merchant API v1, hashe i maska `patch`.
  *

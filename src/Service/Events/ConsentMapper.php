@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Events;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Zamiana zgod na 4 sygnaly Consent Mode v2. Czysta logika (bez PrestaShop).
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\TagManager;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Core\Dto\JobStatus;
 use Quince\Insight\Core\Google\GoogleApiException;
 use Quince\Insight\Core\Google\NotConnectedException;

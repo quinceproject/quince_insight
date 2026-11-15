@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Controller\Admin;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use PrestaShopBundle\Controller\Admin\PrestaShopAdminController;
 use Quince\Insight\Core\Container;
 use Quince\Insight\Core\Dev;

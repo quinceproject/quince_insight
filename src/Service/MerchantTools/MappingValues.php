@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\MerchantTools;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Czysta logika mapowania (bez bazy): identyfikatory, normalizacja plci i wieku,
  * wykrywanie atrybutow po nazwie, dziedziczenie kategorii w dol drzewa.

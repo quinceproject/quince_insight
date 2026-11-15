@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\MerchantTools;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Regula koszyka PrestaShop → promocja Merchant API (`promotions:insert`, research/04 §13). Bez bazy.
  *

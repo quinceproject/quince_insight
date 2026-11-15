@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\MerchantTools;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Czysta logika regul — przeniesiona z FeedForge (`Service/RuleEngine.php`) bez bazy.
  *

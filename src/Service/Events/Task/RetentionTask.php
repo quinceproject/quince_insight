@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Events\Task;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Service\Events\EventLog;
 use Quince\Insight\Service\Events\EventsSettings;
 use Quince\Insight\Service\Events\OrderLog;

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Tytul i opis oferty — czysta logika (przeniesione z FeedForge `DataMapper::buildTitle()`
  * i `buildDescription()`, research/02 §1.5).

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\StructuredData;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Context;
 use Quince\Insight\Core\Container;
 use Quince\Insight\Core\Dto\AttentionItem;

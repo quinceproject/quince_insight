@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole\Sitemap;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Budowa XML mapy witryny — czyste funkcje, bez PrestaShop.
  *

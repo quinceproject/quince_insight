@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Wizard;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Kolejnosc i widocznosc krokow kreatora — czysta logika, bez bazy i bez PrestaShop.
  *

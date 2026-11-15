@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole\Sitemap;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Wpis `Sitemap:` w robots.txt — tylko po zgodzie usera (`_SM_ROBOTS_LINE`, ARCHITEKTURA §11).
  *

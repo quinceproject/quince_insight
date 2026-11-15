@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * `productStatus` przetworzonego produktu → stan i problemy (czysta logika).
  *

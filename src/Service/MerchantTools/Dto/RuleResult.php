@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\MerchantTools\Dto;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Wynik zastosowania regul do produktu. Zmienione pola sa w samym `ProductData`.
  */

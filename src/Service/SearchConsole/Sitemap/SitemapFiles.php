@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole\Sitemap;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Pliki mapy na dysku i ich adresy publiczne (ARCHITEKTURA §7.8).
  *

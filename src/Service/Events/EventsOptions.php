@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Events;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Klucze ustawien uslugi (per sklep) — zdarzenia, zgody, serwer, Customer Reviews. Odczyt i zapis przez `Core\Options`.
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\TagManager\Dto;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Plan kontenera: uporzadkowana lista encji (folder, zmienne, wyzwalacze, tagi) i jej hash.
  */

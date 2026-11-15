@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\TagManager;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Klucze ustawien uslugi (per sklep) — Tag Manager i Google Ads w kontenerze. Odczyt i zapis przez `Core\Options`.
  *

@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Events;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Kiedy zakup albo zwrot moze isc z serwera — jedna regula dla wysylki przy zamowieniu,
  * ponownej wysylki, brakujacych zamowien i crona. Czysta logika.

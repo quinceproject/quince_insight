@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\StructuredData;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Typy danych strukturalnych, ktore modul moze dodac — nazwy, opisy i miejsca 1:1 z
  * prototypem (`prototypy/js/structured.js`, `SD_TYPES`), opisy zgodne z research/05 §K

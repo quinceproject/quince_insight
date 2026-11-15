@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Merchant;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Oferta (produkt prosty albo jedna kombinacja) po zebraniu danych ze sklepu, przed
  * mapowaniem i regulami (kontrakt ARCHITEKTURA §7.6).

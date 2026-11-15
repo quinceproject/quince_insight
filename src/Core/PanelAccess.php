@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Reguly dostepu panelu niezalezne od PrestaShop (testowalne).
  *

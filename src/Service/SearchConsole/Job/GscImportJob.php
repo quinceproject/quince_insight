@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole\Job;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 use Quince\Insight\Core\Dto\Job;
 use Quince\Insight\Core\Dto\JobProgress;
 use Quince\Insight\Core\JobHandler;

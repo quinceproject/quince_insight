@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\TagManager\Dto;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Wszystko, od czego zalezy plan kontenera — i nic poza tym. Plan jest czysta funkcja
  * tego obiektu (`ContainerPlan::build`), wiec te same ustawienia daja ten sam hash.

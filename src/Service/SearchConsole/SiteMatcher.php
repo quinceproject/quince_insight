@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\SearchConsole;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Dopasowanie uslug Search Console do adresu sklepu — czysta logika.
  *

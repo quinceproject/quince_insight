@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Core\Google;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Skad `GoogleClient` bierze token dostepu. W module: `OAuthFlow` dla polaczenia sklepu;
  * w testach: podmiana liczaca odswiezenia.

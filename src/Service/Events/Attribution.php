@@ -11,6 +11,10 @@ declare(strict_types=1);
 
 namespace Quince\Insight\Service\Events;
 
+if (!defined('_PS_VERSION_')) {
+    exit;
+}
+
 /**
  * Zrodlo ruchu zamowienia (utm, gclid, odsylacz). Czysta logika przeniesiona z TagPilota
  * (`parseAttributionFromUrl` / `getOrderAttribution`, research/02 §3.5 — „verbatim”).
