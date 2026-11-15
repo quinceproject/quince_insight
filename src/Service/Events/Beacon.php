@@ -81,7 +81,8 @@ final class Beacon
             return 400;
         }
 
-        $payload = is_array($data['d'] ?? null) ? $data['d'] : [];
+        // Do bazy idzie tylko to, co wysyla nasz skrypt, i najwyzej ~2 kB (BeaconLimit::cleanPayload).
+        $payload = BeaconLimit::cleanPayload($event, is_array($data['d'] ?? null) ? $data['d'] : []);
         $this->log->write($idShop, 'browser', (string) ($data['p'] ?? ''), [['event' => $event, 'payload' => $payload]]);
 
         return 204;

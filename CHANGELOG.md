@@ -4,6 +4,19 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-11-15
+
+### Security
+
+- **In a multistore, an employee limited to some shops cannot reach the others
+  through the setup wizard**: the wizard lists, accepts and keeps only shops the
+  employee may manage, and only Google connections used by those shops.
+- **The public event endpoint stores only the e-commerce fields the shop's script
+  sends**, up to about 2 KB per event, with a limit of 600 events a minute per shop.
+  Before, it accepted any content up to 16 KB.
+- **The event log no longer stores secret parameters of the page address**, such as
+  the order key on the order confirmation page.
+
 ## [0.1.0] - 2026-11-13
 
 First version, for testing on a real Google account.

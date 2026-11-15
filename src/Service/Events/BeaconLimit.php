@@ -23,7 +23,21 @@ final class BeaconLimit
 {
     public const WINDOW = 60;
     public const PER_IP = 60;
-    public const PER_SHOP = 3000;
+    // 10 zgloszen na sekunde na sklep: zdarzenia koszyka i kasy, nie odslony, wiec zapas jest duzy.
+    public const PER_SHOP = 600;
+
+    /** Najwiekszy zapis zdarzenia z przegladarki w dzienniku (bajty JSON). */
+    public const MAX_PAYLOAD = 2000;
+
+    /** Pola `ecommerce`, ktore wysyla skrypt frontu (`views/js/front/events.js`). */
+    private const ECOMMERCE_FIELDS = ['currency', 'value', 'shipping_tier', 'payment_type', 'item_list_id', 'item_list_name'];
+
+    /** Pola pozycji: szablony z PHP (`Ecommerce`) i pozycje z odpowiedzi koszyka. */
+    private const ITEM_FIELDS = [
+        'item_id', 'item_name', 'item_brand', 'item_variant', 'item_list_id', 'item_list_name',
+        'item_category', 'item_category2', 'item_category3', 'item_category4', 'item_category5',
+        'price', 'quantity', 'index', 'discount', 'coupon',
+    ];
     public const OTHER_GTM_EVERY = 1800;
     public const OTHER_GTM_MAX_AGE = 7 * 86400;
 
@@ -61,6 +75,67 @@ final class BeaconLimit
     public static function allowed(int $count, int $limit): bool
     {
         return $count <= $limit;
+    }
+
+    /**
+     * Tresc zgloszenia do dziennika: tylko znane pola ecommerce, krotkie napisy, najwyzej
+     * `MAX_PAYLOAD` bajtow. Adres jest publiczny, wiec reszta tresci od klienta odpada.
+     *
+     * @param array<mixed> $data pole `d` zgloszenia: {event, ecommerce}
+     *
+     * @return array{event:string, ecommerce:array<string,mixed>}
+     */
+    public static function cleanPayload(string $event, array $data): array
+    {
+        $source = is_array($data['ecommerce'] ?? null) ? $data['ecommerce'] : [];
+        $ecommerce = self::pick($source, self::ECOMMERCE_FIELDS);
+        $items = [];
+
+        foreach (array_slice(is_array($source['items'] ?? null) ? array_values($source['items']) : [], 0, 50) as $item) {
+            if (is_array($item)) {
+                $items[] = self::pick($item, self::ITEM_FIELDS);
+            }
+        }
+
+        if ($items !== []) {
+            $ecommerce['items'] = $items;
+        }
+
+        $out = ['event' => $event, 'ecommerce' => $ecommerce];
+
+        // Za duzo pozycji: odcinamy od konca, zeby zapis zostal czytelnym JSON-em.
+        while (strlen((string) json_encode($out)) > self::MAX_PAYLOAD && !empty($out['ecommerce']['items'])) {
+            array_pop($out['ecommerce']['items']);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<mixed> $source
+     * @param string[] $fields
+     *
+     * @return array<string,mixed> wybrane pola: liczby jako liczby, reszta jako napis do 100 znakow
+     */
+    private static function pick(array $source, array $fields): array
+    {
+        $out = [];
+
+        foreach ($fields as $field) {
+            if (!array_key_exists($field, $source)) {
+                continue;
+            }
+
+            $value = $source[$field];
+
+            if (is_int($value) || is_float($value)) {
+                $out[$field] = $value;
+            } elseif (is_string($value) || is_bool($value)) {
+                $out[$field] = mb_substr((string) $value, 0, 100);
+            }
+        }
+
+        return $out;
     }
 
     /**

@@ -38,7 +38,7 @@ final class EventLog
 
         $values = [];
         $now = pSQL(Clock::now());
-        $page = pSQL(substr($page, 0, 255));
+        $page = pSQL(substr(self::cleanPage($page), 0, 255));
 
         foreach ($events as $event) {
             $payload = self::strip($event['payload']);
@@ -137,5 +137,35 @@ final class EventLog
         }
 
         return $payload;
+    }
+
+    /** Parametry adresu, ktore otwieraja cudze dane (np. `key` na potwierdzeniu zamowienia). */
+    private const SECRET_PARAMS = ['key', 'token', 'reset_token', 'id_customer', 'secure_key', 'password'];
+
+    /**
+     * Adres strony do dziennika bez parametrow z sekretami. Czyscimy tutaj, bo ten sam adres
+     * przychodzi z serwera (`REQUEST_URI`) i z przegladarki (zgloszenie skryptu frontu).
+     */
+    public static function cleanPage(string $page): string
+    {
+        $page = explode('#', $page, 2)[0];
+        $parts = explode('?', $page, 2);
+
+        if (!isset($parts[1]) || $parts[1] === '') {
+            return $parts[0];
+        }
+
+        $kept = [];
+
+        foreach (explode('&', $parts[1]) as $pair) {
+            $name = strtolower(urldecode(explode('=', $pair, 2)[0]));
+            $name = (string) preg_replace('/\[.*$/', '', $name);
+
+            if ($pair !== '' && !in_array($name, self::SECRET_PARAMS, true)) {
+                $kept[] = $pair;
+            }
+        }
+
+        return $kept === [] ? $parts[0] : $parts[0] . '?' . implode('&', $kept);
     }
 }

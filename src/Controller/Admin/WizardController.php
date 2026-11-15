@@ -273,7 +273,8 @@ final class WizardController extends PanelController
             foreach ((array) $request->request->all('pick') as $id => $on) {
                 $id = (int) $id;
 
-                if ($on && $id !== $ctx && ShopContext::exists($id) && $this->pickable($ctx, $id)) {
+                // Tylko sklepy, ktorymi pracownik moze zarzadzac: inaczej zmienilby konfiguracje Google cudzego sklepu.
+                if ($on && $id !== $ctx && ShopContext::exists($id) && ShopContext::employeeMayManage($id) && $this->pickable($ctx, $id)) {
                     $picked[] = $id;
                 }
             }
@@ -545,7 +546,8 @@ final class WizardController extends PanelController
         if ($w['adding'] && ctype_digit($choice) && $choice !== '0') {
             $connection = $this->connections->find((int) $choice);
 
-            if ($connection === null) {
+            // Numer z formularza: bez sprawdzenia pracownik podpialby sklep pod tokeny cudzego sklepu.
+            if ($connection === null || !$this->connectionUsable($connection->id)) {
                 return ['conn' => $this->t('Choose a connection.')];
             }
 
@@ -614,8 +616,40 @@ final class WizardController extends PanelController
             return $connection;
         }
 
-        // Pierwsza konfiguracja po odlaczeniu albo polaczenie bez sklepu: to samo polaczenie.
-        return $this->connections->all()[0] ?? null;
+        // Pierwsza konfiguracja po odlaczeniu albo polaczenie bez sklepu: to samo polaczenie,
+        // o ile pracownik moze je ruszac; inaczej formularz zalozy nowe.
+        $first = $this->connections->all()[0] ?? null;
+
+        return $first !== null && $this->connectionUsable($first->id) ? $first : null;
+    }
+
+    /**
+     * Czy kreator moze podpiac sklep pod to polaczenie: uzywa go sklep z kontekstu albo sklep,
+     * ktorym pracownik zarzadza. Polaczenie bez sklepow tylko dla pracownika wszystkich sklepow.
+     * Sam `connectionInContext()` nie wystarcza: w kontekscie jednego sklepu odrzucilby
+     * polaczenie innego sklepu tego samego pracownika, a na tym stoi dodawanie sklepu.
+     */
+    private function connectionUsable(int $idConnection): bool
+    {
+        if ($this->connectionInContext($idConnection)) {
+            return true;
+        }
+
+        $users = $this->shops->shopsOfConnection($idConnection);
+
+        if ($users === []) {
+            $users = array_keys(ShopContext::shops());
+
+            return array_filter($users, static fn (int $id): bool => !ShopContext::employeeMayManage($id)) === [];
+        }
+
+        foreach ($users as $idShop) {
+            if (ShopContext::employeeMayManage((int) $idShop)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -714,7 +748,7 @@ final class WizardController extends PanelController
     {
         $candidates = array_values(array_filter(
             $this->contextShopIds(),
-            static fn (int $id): bool => ShopContext::exists($id)
+            static fn (int $id): bool => ShopContext::exists($id) && ShopContext::employeeMayManage($id)
         ));
 
         $picked = WizardFlow::pickedShops($mode, (int) $request->request->get('one', 0), (array) $request->request->all('pick'), $candidates);
@@ -924,7 +958,7 @@ final class WizardController extends PanelController
                 $context = $this->contextShopIds();
 
                 foreach (ShopContext::shops() as $id => $shop) {
-                    if ($all && !in_array($id, $context, true)) {
+                    if (($all && !in_array($id, $context, true)) || !ShopContext::employeeMayManage($id)) {
                         continue;
                     }
 
@@ -998,6 +1032,11 @@ final class WizardController extends PanelController
 
         if ($w['adding']) {
             foreach ($this->connections->all() as $conn) {
+                // Na liscie tylko polaczenia, ktore zapis kroku przyjmie (saveCloud).
+                if (!$this->connectionUsable($conn->id)) {
+                    continue;
+                }
+
                 $users = [];
 
                 foreach ($this->shops->shopsOfConnection($conn->id) as $id) {

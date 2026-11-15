@@ -32,7 +32,8 @@ final class WizardRun
         $run = Options::json(WizardOptions::RUN, [], $idShop);
         $shops = array_values(array_unique(array_filter(
             array_map('intval', (array) ($run['shops'] ?? [])),
-            static fn (int $id): bool => $id > 0 && ShopContext::exists($id)
+            // Sklep spoza uprawnien pracownika wypada z przejscia, nawet gdy zapisal go ktos inny.
+            static fn (int $id): bool => $id > 0 && ShopContext::exists($id) && ShopContext::employeeMayManage($id)
         )));
 
         // Sklep biezacego kontekstu zawsze nalezy do swojego przejscia.

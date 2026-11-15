@@ -131,6 +131,21 @@ final class ShopContext
         return isset(self::shops()[$idShop]);
     }
 
+    /**
+     * Czy zalogowany pracownik moze zarzadzac sklepem (przypisanie w "Employees" albo superadmin).
+     * Bez pracownika (cron, front, testy) nie ma kogo ograniczac.
+     */
+    public static function employeeMayManage(int $idShop): bool
+    {
+        $employee = self::$fake !== null ? null : (Context::getContext()->employee ?? null);
+
+        if ($employee === null || !$employee->id) {
+            return true;
+        }
+
+        return (bool) $employee->hasAuthOnShop($idShop);
+    }
+
     /** Czy sklep istnieje i jest wlaczony. Sklep wylaczony ma wstrzymane crony i wysylke. */
     public static function isActive(int $idShop): bool
     {
