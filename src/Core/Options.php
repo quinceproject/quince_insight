@@ -79,7 +79,18 @@ final class Options
     /** Sekret w postaci jawnej ('' gdy brak albo nie da sie odszyfrowac). Nigdy do HTML ani JSON. */
     public static function secret(string $key, ?int $idShop = null): string
     {
-        return Crypto::decrypt((string) self::raw($key, $idShop));
+        $idShop = $idShop ?? ShopContext::currentOrDefault();
+
+        return Crypto::decrypt((string) self::raw($key, $idShop), self::secretContext($idShop, self::name($key)));
+    }
+
+    /**
+     * Kontekst szyfrowania sekretu: ustawienie w jednym sklepie. `$name` to nazwa
+     * zapisana w tabeli (z prefiksem), tak jak ja widzi aktualizacja przepisujaca wartosci.
+     */
+    public static function secretContext(int $idShop, string $name): string
+    {
+        return 'setting|' . $idShop . '|' . $name;
     }
 
     /**
@@ -98,7 +109,9 @@ final class Options
 
     public static function setSecret(string $key, string $plain, ?int $idShop = null): void
     {
-        self::write($key, Crypto::encrypt($plain), $idShop);
+        $idShop = $idShop ?? ShopContext::currentOrDefault();
+
+        self::write($key, Crypto::encrypt($plain, self::secretContext($idShop, self::name($key))), $idShop);
     }
 
     /** Czy sklep ma wlasny wiersz tego ustawienia (takze pusty albo zero). */

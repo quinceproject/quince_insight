@@ -40,7 +40,10 @@ final class ConsentMapper
         'preference' => 'preferences',
     ];
 
-    private const TRUE_VALUES = ['1', 'true', 'yes', 'granted', 'allow', 'allowed', 'accepted', 'on'];
+    /** Fragmenty nazw kluczy, pod ktorymi narzedzia trzymaja kategorie odrzucone. */
+    private const NEGATIVE_KEYS = ['reject', 'denied', 'deny', 'declin', 'refus', 'disallow', 'optout', 'notaccepted', 'notallowed'];
+
+    private const TRUE_VALUES =['1', 'true', 'yes', 'granted', 'allow', 'allowed', 'accepted', 'on'];
 
     /**
      * Kategorie, na ktore odwiedzajacy sie zgodzil; null = ciasteczka brak (nie zdecydowal).
@@ -162,6 +165,12 @@ final class ConsentMapper
             }
 
             if (is_array($value)) {
+                // Galaz z odmowa ({"rejected": ["analytics"]}) nie jest lista zgod.
+                // Bez tego kategorie odrzucone liczylyby sie jak przyznane.
+                if (is_string($key) && self::negative($key)) {
+                    continue;
+                }
+
                 // Zagniezdzenie typu {"categories": {...}} albo {"consent": [...]}.
                 self::collect($value, $granted);
                 continue;
@@ -171,6 +180,20 @@ final class ConsentMapper
                 $granted[] = self::category($key);
             }
         }
+    }
+
+    /** Klucz galezi z kategoriami odrzuconymi (`rejected`, `deniedCategories`, `opt_out`...). */
+    private static function negative(string $key): bool
+    {
+        $key = (string) preg_replace('/[^a-z]/', '', strtolower($key));
+
+        foreach (self::NEGATIVE_KEYS as $fragment) {
+            if (str_contains($key, $fragment)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function truthy(mixed $value): bool

@@ -4,6 +4,20 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-11-15
+
+### Security
+
+- **Stored secrets are tied to the place they belong to.** The Google client secret, API
+  key, tokens and the Measurement Protocol secret are encrypted together with the
+  connection or shop and the field they are stored in. A value copied in the database
+  to another connection, field or shop can no longer be read. The update re-encrypts
+  the secrets saved by earlier versions.
+- **"Another tool" consent source: categories listed as refused are no longer read as
+  granted.** A consent cookie such as `{"accepted":["necessary"],"rejected":["analytics"]}`
+  used to grant analytics. Branches named `rejected`, `denied`, `declined`, `refused`,
+  `disallowed` or `opt_out` are now skipped.
+
 ## [0.1.2] - 2026-11-15
 
 ### Security

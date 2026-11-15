@@ -72,15 +72,22 @@ final class ConnectionRepository
             Db::getInstance()->insert(Schema::name(Schema::CONNECTION), [
                 'label' => pSQL(mb_substr($label, 0, 120), true),
                 'client_id' => pSQL(trim($clientId)),
-                'client_secret' => pSQL(Crypto::encrypt(trim($clientSecret))),
-                'api_key' => pSQL(Crypto::encrypt(trim($apiKey))),
+                'client_secret' => '',
+                'api_key' => '',
                 'status' => Connection::STATUS_NEW,
                 'scopes' => '',
                 'date_add' => $now,
                 'date_upd' => $now,
             ]);
 
-            return (int) Db::getInstance()->Insert_ID();
+            // Sekrety po wstawieniu: ich szyfrowanie wiaze identyfikator polaczenia.
+            $idNew = (int) Db::getInstance()->Insert_ID();
+            $this->update($idNew, [
+                'client_secret' => pSQL(Crypto::encrypt(trim($clientSecret), self::context($idNew, 'client_secret'))),
+                'api_key' => pSQL(Crypto::encrypt(trim($apiKey), self::context($idNew, 'api_key'))),
+            ]);
+
+            return $idNew;
         }
 
         $fields = [
@@ -90,11 +97,11 @@ final class ConnectionRepository
         ];
 
         if (trim($clientSecret) !== '') {
-            $fields['client_secret'] = pSQL(Crypto::encrypt(trim($clientSecret)));
+            $fields['client_secret'] = pSQL(Crypto::encrypt(trim($clientSecret), self::context((int) $idConnection, 'client_secret')));
         }
 
         if (trim($apiKey) !== '') {
-            $fields['api_key'] = pSQL(Crypto::encrypt(trim($apiKey)));
+            $fields['api_key'] = pSQL(Crypto::encrypt(trim($apiKey), self::context((int) $idConnection, 'api_key')));
         }
 
         if (trim($clientId) !== (string) $existing['client_id']) {
@@ -161,7 +168,8 @@ final class ConnectionRepository
         }
 
         if ($revokeAtGoogle) {
-            $token = Crypto::decrypt((string) $row['refresh_token']) ?: Crypto::decrypt((string) $row['access_token']);
+            $token = Crypto::decrypt((string) $row['refresh_token'], self::context($idConnection, 'refresh_token'))
+                ?: Crypto::decrypt((string) $row['access_token'], self::context($idConnection, 'access_token'));
 
             if ($token !== '') {
                 // Nieudane cofniecie (token juz niewazny, brak sieci) nie blokuje odlaczenia.
@@ -205,12 +213,18 @@ final class ConnectionRepository
 
     public function clientSecret(int $idConnection): string
     {
-        return Crypto::decrypt((string) ($this->row($idConnection)['client_secret'] ?? ''));
+        return Crypto::decrypt((string) ($this->row($idConnection)['client_secret'] ?? ''), self::context($idConnection, 'client_secret'));
     }
 
     public function apiKey(int $idConnection): string
     {
-        return Crypto::decrypt((string) ($this->row($idConnection)['api_key'] ?? ''));
+        return Crypto::decrypt((string) ($this->row($idConnection)['api_key'] ?? ''), self::context($idConnection, 'api_key'));
+    }
+
+    /** Kontekst szyfrowania sekretu: pole w jednym polaczeniu. */
+    public static function context(int $idConnection, string $field): string
+    {
+        return 'connection|' . $idConnection . '|' . $field;
     }
 
     /**
@@ -221,8 +235,8 @@ final class ConnectionRepository
         $row = $this->row($idConnection) ?? [];
 
         return [
-            'access' => Crypto::decrypt((string) ($row['access_token'] ?? '')),
-            'refresh' => Crypto::decrypt((string) ($row['refresh_token'] ?? '')),
+            'access' => Crypto::decrypt((string) ($row['access_token'] ?? ''), self::context($idConnection, 'access_token')),
+            'refresh' => Crypto::decrypt((string) ($row['refresh_token'] ?? ''), self::context($idConnection, 'refresh_token')),
             'expires_at' => !empty($row['access_expires_at']) ? (string) $row['access_expires_at'] : null,
         ];
     }
@@ -236,14 +250,14 @@ final class ConnectionRepository
     public function saveTokens(int $idConnection, string $accessToken, int $expiresIn, string $refreshToken = '', ?array $scopes = null): void
     {
         $fields = [
-            'access_token' => pSQL(Crypto::encrypt($accessToken)),
+            'access_token' => pSQL(Crypto::encrypt($accessToken, self::context($idConnection, 'access_token'))),
             'access_expires_at' => pSQL(Clock::at(max(0, $expiresIn))),
             'status' => Connection::STATUS_OK,
             'last_error' => '',
         ];
 
         if ($refreshToken !== '') {
-            $fields['refresh_token'] = pSQL(Crypto::encrypt($refreshToken));
+            $fields['refresh_token'] = pSQL(Crypto::encrypt($refreshToken, self::context($idConnection, 'refresh_token')));
         }
 
         if ($scopes !== null) {
