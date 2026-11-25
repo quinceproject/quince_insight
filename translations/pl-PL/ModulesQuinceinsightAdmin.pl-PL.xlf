@@ -9819,6 +9819,31 @@
         <target>Zapisz i prześlij</target>
         <note>views/templates/admin/wizard/steps/gsc.html.twig</note>
       </trans-unit>
+      <trans-unit id="004bf6c9a40003140292e97330236c53">
+        <source>Action</source>
+        <target>Akcja</target>
+        <note>views/templates/admin/wizard/steps/gtm.html.twig</note>
+      </trans-unit>
+      <trans-unit id="ee5be93eeb4215803d7127570490b998">
+        <source>Will be created</source>
+        <target>Zostanie utworzony</target>
+        <note>src/Service/TagManager/ChangeRows.php</note>
+      </trans-unit>
+      <trans-unit id="2bf7e081fb977f1f869569fdc3a2a030">
+        <source>Will be updated</source>
+        <target>Zostanie zmieniony</target>
+        <note>src/Service/TagManager/ChangeRows.php</note>
+      </trans-unit>
+      <trans-unit id="73852604a799db155e3dfbffd3633909">
+        <source>Will be removed</source>
+        <target>Zostanie usunięty</target>
+        <note>src/Service/TagManager/ChangeRows.php</note>
+      </trans-unit>
+      <trans-unit id="7b44391e916811603c318ffd2caaf1b1">
+        <source>No change</source>
+        <target>Bez zmian</target>
+        <note>src/Service/TagManager/ChangeRows.php</note>
+      </trans-unit>
     </body>
   </file>
 </xliff>

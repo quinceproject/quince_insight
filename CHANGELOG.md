@@ -4,6 +4,15 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-11-26
+
+### Changed
+
+- **Tag Manager: the list of container changes says what the module will do.** The column
+  is called "Action" instead of "Change", and its labels read "Will be created", "Will be
+  updated", "Will be removed" and "No change" instead of "Create", "Update", "Remove" and
+  "Unchanged", which looked like buttons to click. In the wizard and on the Events screen.
+
 ## [0.1.5] - 2026-11-26
 
 ### Fixed

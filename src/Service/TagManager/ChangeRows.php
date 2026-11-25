@@ -37,10 +37,10 @@ final class ChangeRows
     ];
 
     private const LABELS = [
-        PlanDiff::CREATE => ['Create', 'accent'],
-        PlanDiff::UPDATE => ['Update', 'warning'],
-        PlanDiff::DELETE => ['Remove', 'danger'],
-        PlanDiff::KEEP => ['Unchanged', ''],
+        PlanDiff::CREATE => ['Will be created', 'accent'],
+        PlanDiff::UPDATE => ['Will be updated', 'warning'],
+        PlanDiff::DELETE => ['Will be removed', 'danger'],
+        PlanDiff::KEEP => ['No change', ''],
     ];
 
     /**

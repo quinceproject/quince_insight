@@ -232,11 +232,11 @@ window.qiGtmStep = window.qiGtmStep || function (cfg) {
                 <div class="qc-set-title" x-text="newContainer ? {{ 'Changes in the new container'|trans|json_encode }} : {{ 'Changes in %id%'|trans|json_encode }}.replace('%id%', current() ? current().publicId : '')"></div>
                 <div class="qc-line" style="margin-top:4px">{{ 'Nothing is published until you click Apply and publish.'|trans }}</div>
             </div>
-            <div class="qc-grid-head" style="grid-template-columns:120px 1fr 80px 100px;padding:10px 18px">
-                <div>{{ 'Type'|trans }}</div><div>{{ 'Name'|trans }}</div><div>{{ 'Count'|trans }}</div><div>{{ 'Change'|trans }}</div>
+            <div class="qc-grid-head" style="grid-template-columns:120px 1fr 80px 170px;padding:10px 18px">
+                <div>{{ 'Type'|trans }}</div><div>{{ 'Name'|trans }}</div><div>{{ 'Count'|trans }}</div><div>{{ 'Action'|trans }}</div>
             </div>
             <template x-for="r in rows" :key="r.name + r.op">
-                <div class="qc-grid-row qi-row" style="grid-template-columns:120px 1fr 80px 100px">
+                <div class="qc-grid-row qi-row" style="grid-template-columns:120px 1fr 80px 170px">
                     <div class="qc-line" x-text="r.type"></div>
                     <div style="font-size:var(--text-sm)" x-text="r.name"></div>
                     <div class="qc-line" x-text="r.count"></div>

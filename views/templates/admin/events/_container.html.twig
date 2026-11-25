@@ -94,9 +94,9 @@ window.qiGtmCard = window.qiGtmCard || function (cfg) {
 
     <template x-if="reviewing">
     <div>
-        <div class="qc-grid-head" style="grid-template-columns:110px 1fr 70px 90px;padding:10px 18px"><div>{{ 'Type'|trans }}</div><div>{{ 'Name'|trans }}</div><div>{{ 'Count'|trans }}</div><div>{{ 'Change'|trans }}</div></div>
+        <div class="qc-grid-head" style="grid-template-columns:110px 1fr 70px 170px;padding:10px 18px"><div>{{ 'Type'|trans }}</div><div>{{ 'Name'|trans }}</div><div>{{ 'Count'|trans }}</div><div>{{ 'Action'|trans }}</div></div>
         <template x-for="r in rows" :key="r.name + r.op">
-            <div class="qc-grid-row qi-row" style="grid-template-columns:110px 1fr 70px 90px">
+            <div class="qc-grid-row qi-row" style="grid-template-columns:110px 1fr 70px 170px">
                 <span class="qc-line" x-text="r.type"></span>
                 <span style="font-size:var(--text-sm)" x-text="r.name"></span>
                 <span class="qc-line" x-text="r.count"></span>
