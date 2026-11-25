@@ -4,6 +4,19 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-11-26
+
+### Fixed
+
+- **Tag Manager: no second Google tag when the container already has one.** When the
+  container already holds a Google tag for the same measurement ID (for example one Tag
+  Manager added for the linked Analytics property), the module no longer creates its own
+  "QI - Google tag": Tag Manager refused to create a version with two Google tags for one
+  destination ("Conflicting Google tag"). The module now uses the existing tag, only adds
+  `send_page_view: false` to it so page views are not counted twice, and removes its own
+  Google tag if it had already created one. The existing tag is never deleted by the
+  module. The list of changes shows it as "Will be updated".
+
 ## [0.1.6] - 2026-11-26
 
 ### Changed

@@ -34,6 +34,14 @@ final class PlanDiff
     public const KEEP = 'keep';
     /** Wpis w `gtm_entity` bez encji w kontenerze i bez miejsca w planie — tylko usuniecie wiersza. */
     public const FORGET = 'forget';
+    /**
+     * Tag Google spoza modulu dla tego samego identyfikatora (G-… / AW-…) juz jest w kontenerze:
+     * modul nie tworzy drugiego (Tag Manager odrzuca wersje z konfliktem tagow Google),
+     * tylko dopisuje do istniejacego `send_page_view: false` (decyzja #9).
+     */
+    public const ADOPT = 'adopt';
+    /** Jak ADOPT, ale istniejacy tag Google ma juz `send_page_view: false` — bez zapisu. */
+    public const ADOPTED = 'adopted';
 
     public const ID_FIELDS = ['tag' => 'tagId', 'trigger' => 'triggerId', 'variable' => 'variableId', 'folder' => 'folderId'];
 
@@ -59,7 +67,35 @@ final class PlanDiff
         $ops = [];
         $used = [];
 
+        // Tag Google z innego zrodla (np. dodany przez Tag Manager do uslugi) dla tego samego
+        // identyfikatora: korzystamy z niego, a wlasny — jesli juz powstal — usuwamy.
+        $google = $plan->find('tag.google');
+        $foreign = $google !== null ? self::foreignGoogleTag($google, $live['tag'] ?? [], $tracked['tag.google']['gtm_id'] ?? '') : null;
+
+        if ($google !== null && $foreign !== null) {
+            $ownId = '';
+            $row = $tracked['tag.google'] ?? null;
+
+            if ($row !== null && isset($byId['tag'][$row['gtm_id']])) {
+                $ownId = (string) $row['gtm_id'];
+            } elseif (isset($byName['tag'][$google->name])) {
+                $ownId = (string) ($byName['tag'][$google->name]['tagId'] ?? '');
+            }
+
+            if ($ownId !== '' && $ownId !== (string) $foreign['tagId']) {
+                $ops[] = $this->op(self::DELETE, 'tag', 'tag.google', $google->name, $google->group, $ownId, '');
+                $used['tag'][$ownId] = true;
+            }
+
+            $used['tag'][(string) $foreign['tagId']] = true;
+            $ops[] = $this->op(self::googleTagInfo($foreign)['noPageView'] ? self::ADOPTED : self::ADOPT, 'tag', 'tag.google', (string) ($foreign['name'] ?? ''), $google->group, (string) $foreign['tagId'], (string) ($foreign['fingerprint'] ?? ''));
+        }
+
         foreach ($plan->entities as $entity) {
+            if ($entity->key === 'tag.google' && $foreign !== null) {
+                continue;
+            }
+
             $field = self::ID_FIELDS[$entity->kind];
             $row = $tracked[$entity->key] ?? null;
             $match = null;
@@ -96,7 +132,7 @@ final class PlanDiff
         $removals = [];
 
         foreach ($tracked as $key => $row) {
-            if (isset($planKeys[$key])) {
+            if (isset($planKeys[$key]) || ($key === 'tag.google' && $foreign !== null)) {
                 continue;
             }
 
@@ -114,7 +150,140 @@ final class PlanDiff
     /** Liczba wywolan zapisujacych potrzebnych do wykonania roznic. */
     public static function writes(array $ops): int
     {
-        return count(array_filter($ops, static fn (array $op): bool => in_array($op['op'], [self::CREATE, self::UPDATE, self::DELETE], true)));
+        return count(array_filter($ops, static fn (array $op): bool => in_array($op['op'], [self::CREATE, self::UPDATE, self::DELETE, self::ADOPT], true)));
+    }
+
+    /**
+     * Tag Google spoza modulu dla identyfikatora z planu albo null.
+     *
+     * @param array<int,array<string,mixed>> $tags tagi z kontenera (pelne albo `slim`)
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function foreignGoogleTag(\Quince\Insight\Service\TagManager\Dto\PlanEntity $google, array $tags, string $ownTrackedId): ?array
+    {
+        $want = strtoupper(trim((string) self::paramValue($google->body['parameter'] ?? [], 'tagId')));
+
+        if ($want === '') {
+            return null;
+        }
+
+        foreach ($tags as $tag) {
+            $info = self::googleTagInfo($tag);
+
+            if ($info['type'] !== 'googtag' || strtoupper($info['tagId']) !== $want) {
+                continue;
+            }
+
+            $id = (string) ($tag['tagId'] ?? '');
+
+            if ($id === '' || $id === $ownTrackedId || (string) ($tag['name'] ?? '') === $google->name) {
+                continue;
+            }
+
+            return $tag;
+        }
+
+        return null;
+    }
+
+    /**
+     * Typ tagu, identyfikator docelowy tagu Google i czy ma `send_page_view: false`.
+     * Dziala na pelnej encji z API i na wersji `slim` z zadania.
+     *
+     * @param array<string,mixed> $tag
+     *
+     * @return array{type:string,tagId:string,noPageView:bool}
+     */
+    public static function googleTagInfo(array $tag): array
+    {
+        if (isset($tag['googtagId'])) {
+            return ['type' => (string) ($tag['type'] ?? ''), 'tagId' => (string) $tag['googtagId'], 'noPageView' => ($tag['noPageView'] ?? '') === '1'];
+        }
+
+        $params = is_array($tag['parameter'] ?? null) ? $tag['parameter'] : [];
+
+        return [
+            'type' => (string) ($tag['type'] ?? ''),
+            'tagId' => (string) self::paramValue($params, 'tagId'),
+            'noPageView' => self::sendPageViewOff($params),
+        ];
+    }
+
+    /** @param array<int,array<string,mixed>> $params */
+    public static function sendPageViewOff(array $params): bool
+    {
+        foreach ($params as $param) {
+            if (($param['key'] ?? '') !== 'configSettingsTable' || !is_array($param['list'] ?? null)) {
+                continue;
+            }
+
+            foreach ($param['list'] as $row) {
+                $map = is_array($row['map'] ?? null) ? $row['map'] : [];
+
+                if (self::paramValue($map, 'parameter') === 'send_page_view') {
+                    return strtolower(trim((string) self::paramValue($map, 'parameterValue'))) === 'false';
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Parametry tagu Google z `send_page_view: false` — reszta konfiguracji bez zmian.
+     *
+     * @param array<int,array<string,mixed>> $params
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function withSendPageViewOff(array $params): array
+    {
+        $row = ['type' => 'map', 'map' => [
+            ['type' => 'template', 'key' => 'parameter', 'value' => 'send_page_view'],
+            ['type' => 'template', 'key' => 'parameterValue', 'value' => 'false'],
+        ]];
+
+        foreach ($params as $i => $param) {
+            if (($param['key'] ?? '') !== 'configSettingsTable') {
+                continue;
+            }
+
+            $list = is_array($param['list'] ?? null) ? $param['list'] : [];
+
+            foreach ($list as $j => $existing) {
+                $map = is_array($existing['map'] ?? null) ? $existing['map'] : [];
+
+                if (self::paramValue($map, 'parameter') === 'send_page_view') {
+                    $list[$j] = $row;
+                    $params[$i]['list'] = $list;
+
+                    return $params;
+                }
+            }
+
+            $list[] = $row;
+            $params[$i]['type'] = 'list';
+            $params[$i]['list'] = $list;
+
+            return $params;
+        }
+
+        $params[] = ['type' => 'list', 'key' => 'configSettingsTable', 'list' => [$row]];
+
+        return $params;
+    }
+
+    /** @param array<int,array<string,mixed>> $params */
+    private static function paramValue(array $params, string $key): ?string
+    {
+        foreach ($params as $param) {
+            if (($param['key'] ?? '') === $key) {
+                return isset($param['value']) ? (string) $param['value'] : null;
+            }
+        }
+
+        return null;
     }
 
     /** Grupa podgladu z samego klucza (dla encji usuwanych, ktorych nie ma w planie). */

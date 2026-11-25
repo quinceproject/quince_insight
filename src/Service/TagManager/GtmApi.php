@@ -119,6 +119,12 @@ final class GtmApi
         return $this->paginate($workspacePath . '/' . $collection, $kind);
     }
 
+    /** @return array<string,mixed> jedna encja z workspace (pelna, z `fingerprint`) */
+    public function entity(string $workspacePath, string $kind, string $id): array
+    {
+        return $this->get($workspacePath . '/' . self::COLLECTIONS[$kind] . '/' . rawurlencode($id));
+    }
+
     /** @param array<string,mixed> $body @return array<string,mixed> */
     public function create(string $workspacePath, string $kind, array $body): array
     {

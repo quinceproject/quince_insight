@@ -41,6 +41,8 @@ final class ChangeRows
         PlanDiff::UPDATE => ['Will be updated', 'warning'],
         PlanDiff::DELETE => ['Will be removed', 'danger'],
         PlanDiff::KEEP => ['No change', ''],
+        PlanDiff::ADOPT => ['Will be updated', 'warning'],
+        PlanDiff::ADOPTED => ['No change', ''],
     ];
 
     /**
@@ -63,7 +65,7 @@ final class ChangeRows
         $rows = [];
 
         foreach (self::GROUPS as $group => [$type, $name]) {
-            foreach ([PlanDiff::CREATE, PlanDiff::UPDATE, PlanDiff::DELETE, PlanDiff::KEEP] as $op) {
+            foreach ([PlanDiff::CREATE, PlanDiff::UPDATE, PlanDiff::ADOPT, PlanDiff::DELETE, PlanDiff::KEEP, PlanDiff::ADOPTED] as $op) {
                 $n = $counts[$group][$op] ?? 0;
 
                 if ($n === 0) {

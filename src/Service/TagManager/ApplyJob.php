@@ -353,7 +353,7 @@ final class ApplyJob implements JobHandler
                 continue;
             }
 
-            if ($op['op'] !== PlanDiff::KEEP) {
+            if ($op['op'] !== PlanDiff::KEEP && $op['op'] !== PlanDiff::ADOPTED) {
                 // Identyfikator z `gtm_entity` w chwili planowania: inny przy wznowieniu = zapis juz sie udal.
                 $op['trackedId'] = (string) ($tracked[$op['key']]['gtm_id'] ?? '');
                 $todo[] = $op;
@@ -404,6 +404,11 @@ final class ApplyJob implements JobHandler
             if ($op['op'] === PlanDiff::DELETE) {
                 $changes[] = [$kind => [$field => $op['gtmId'], 'path' => $s['ws'] . '/' . GtmApi::COLLECTIONS[$kind] . '/' . $op['gtmId']], 'changeStatus' => 'deleted'];
 
+                continue;
+            }
+
+            // Cudzy tag Google zmieniamy pojedynczym zapisem (odczyt calej encji + dopisanie ustawienia).
+            if ($op['op'] === PlanDiff::ADOPT) {
                 continue;
             }
 
@@ -482,6 +487,27 @@ final class ApplyJob implements JobHandler
             }
 
             $this->store->remove($idShop, $container, $kind, (string) $op['key']);
+        } elseif ($op['op'] === PlanDiff::ADOPT) {
+            // Istniejacy tag Google (spoza modulu): tylko `send_page_view: false`, reszta bez zmian.
+            // Nie trafia do `gtm_entity` — modul nigdy go nie usunie.
+            $tag = $api->entity($ws, 'tag', (string) $op['gtmId']);
+            $body = $tag;
+            $body['parameter'] = PlanDiff::withSendPageViewOff(is_array($tag['parameter'] ?? null) ? $tag['parameter'] : []);
+
+            try {
+                $api->update($ws, 'tag', (string) $op['gtmId'], $body, (string) ($tag['fingerprint'] ?? ''));
+            } catch (GoogleApiException $e) {
+                if (($e->httpCode() === 400 || $e->httpCode() === 409) && empty($s['resynced']['tag.google.adopt'])) {
+                    $s['resynced']['tag.google.adopt'] = true;
+                    $s['readQueue'] = self::READ_ORDER;
+                    $s['live'] = [];
+                    $s['phase'] = 'read';
+
+                    return;
+                }
+
+                throw $e;
+            }
         } else {
             $entity = $this->plan($s)->find((string) $op['key']);
 
@@ -805,11 +831,21 @@ final class ApplyJob implements JobHandler
         $out = [];
 
         foreach ($list as $entity) {
-            $out[] = [
+            $row = [
                 $field => (string) ($entity[$field] ?? ''),
                 'name' => (string) ($entity['name'] ?? ''),
                 'fingerprint' => (string) ($entity['fingerprint'] ?? ''),
             ];
+
+            // Tagi Google: tyle, ile trzeba do wykrycia tagu Google spoza modulu (PlanDiff::ADOPT).
+            if ($kind === 'tag' && (string) ($entity['type'] ?? '') === 'googtag') {
+                $info = PlanDiff::googleTagInfo($entity);
+                $row['type'] = 'googtag';
+                $row['googtagId'] = $info['tagId'];
+                $row['noPageView'] = $info['noPageView'] ? '1' : '0';
+            }
+
+            $out[] = $row;
         }
 
         return $out;
