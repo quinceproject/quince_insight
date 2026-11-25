@@ -4,6 +4,19 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-11-26
+
+### Fixed
+
+- **Tag Manager: the reason why a container version was not created is now shown.**
+  When Tag Manager does not return the new version, the wizard and the Events screen
+  show what Google answered (compiler error, workspace conflict, which fields came
+  back) and the module writes it to its log. Before, the message only said to open the
+  workspace, which did not help when the workspace had no errors.
+- **Tag Manager: a version returned without its path is no longer reported as a
+  failure.** The module builds the path from the container and the version number, or
+  finds the new version by its name when Google already replaced the workspace.
+
 ## [0.1.4] - 2026-11-16
 
 ### Changed

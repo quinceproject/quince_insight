@@ -128,7 +128,7 @@ class Quince_Insight extends Module
     {
         $this->name = 'quince_insight';
         $this->tab = 'analytics_stats';
-        $this->version = '0.1.4';
+        $this->version = '0.1.5';
         $this->author = 'Quince Project';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '9.0.2', 'max' => '9.99.99'];

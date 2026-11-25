@@ -540,6 +540,29 @@ final class ApplyJob implements JobHandler
         $s['changed'] = true;
     }
 
+    /**
+     * Krotki opis odpowiedzi `create_version`: flagi i lista pol, bez tresci encji.
+     *
+     * @param array<string,mixed> $result
+     */
+    public static function versionResponseSummary(array $result): string
+    {
+        $flag = static fn (mixed $v): string => $v === null ? 'missing' : (!empty($v) ? 'true' : 'false');
+        $sync = is_array($result['syncStatus'] ?? null) ? $result['syncStatus'] : [];
+        $version = is_array($result['containerVersion'] ?? null) ? $result['containerVersion'] : null;
+
+        $parts = [
+            'compilerError=' . $flag($result['compilerError'] ?? null),
+            'mergeConflict=' . $flag($sync['mergeConflict'] ?? null),
+            'syncError=' . $flag($sync['syncError'] ?? null),
+            'containerVersion=' . ($version === null ? 'missing' : 'present (fields: ' . implode(', ', array_slice(array_keys($version), 0, 12)) . ')'),
+            'newWorkspacePath=' . (!empty($result['newWorkspacePath']) ? 'present' : 'missing'),
+            'response fields: ' . ($result === [] ? 'none' : implode(', ', array_keys($result))),
+        ];
+
+        return implode('; ', $parts);
+    }
+
     /** @param array<string,mixed> $s */
     private function version(int $idShop, array &$s, GtmApi $api): void
     {
@@ -567,12 +590,33 @@ final class ApplyJob implements JobHandler
             return;
         }
 
-        if (!empty($result['compilerError']) || empty($result['containerVersion']['path'])) {
-            throw new \RuntimeException('Tag Manager could not create the container version. Open the workspace “Quince Insight” in Tag Manager to see the problem.');
+        $version = is_array($result['containerVersion'] ?? null) ? $result['containerVersion'] : [];
+        $versionId = (string) ($version['containerVersionId'] ?? '');
+        $path = (string) ($version['path'] ?? '');
+
+        // Wersja jest, ale bez `path` w odpowiedzi — sciezke da sie zlozyc z kontenera i numeru.
+        if ($path === '' && $versionId !== '' && empty($result['compilerError'])) {
+            $path = rtrim((string) $s['container'], '/') . '/versions/' . $versionId;
         }
 
-        $s['versionPath'] = (string) $result['containerVersion']['path'];
-        $s['versionId'] = (string) ($result['containerVersion']['containerVersionId'] ?? '');
+        // Bez bledu kompilacji i bez wersji w odpowiedzi, ale z nowym obszarem roboczym:
+        // `create_version` usunal obszar, wiec wersja najpewniej powstala — szukamy jej po nazwie.
+        if ($path === '' && empty($result['compilerError']) && !empty($result['newWorkspacePath'])) {
+            $s['phase'] = 'findVersion';
+
+            return;
+        }
+
+        if (!empty($result['compilerError']) || $path === '') {
+            // Odpowiedz Google (bez danych osobowych i sekretow) — zeby bylo widac prawdziwa przyczyne.
+            $details = self::versionResponseSummary($result);
+            Log::write($idShop, 'tagmanager', Log::ERROR, 'create_version did not return a version', ['response' => $details]);
+
+            throw new \RuntimeException('Tag Manager could not create the container version. Open the workspace “Quince Insight” in Tag Manager to see the problem. — Google: ' . $details);
+        }
+
+        $s['versionPath'] = $path;
+        $s['versionId'] = $versionId;
         $s['ws'] = '';
         $s['phase'] = 'publish';
     }
