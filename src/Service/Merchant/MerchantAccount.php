@@ -116,8 +116,18 @@ final class MerchantAccount
             throw new \InvalidArgumentException('Enter the numeric Merchant ID.');
         }
 
-        $account = $this->client($idShop)->get(self::API . '/accounts/v1/accounts/' . $accountId);
-        $name = (string) ($account['accountName'] ?? $accountId);
+        try {
+            $account = $this->client($idShop)->get(self::API . '/accounts/v1/accounts/' . $accountId);
+            $name = (string) ($account['accountName'] ?? $accountId);
+        } catch (GoogleApiException $e) {
+            // Przed rejestracja projektu Merchant API nie odpowiada na nic poza samym
+            // `registerGcp` — numer konta zapisujemy bez nazwy, nazwa dojdzie po rejestracji.
+            if ($e->reason() !== 'GCP_NOT_REGISTERED') {
+                throw $e;
+            }
+
+            $name = $accountId;
+        }
 
         if ($this->accountId($idShop) !== $accountId) {
             // Inne konto = inny stan przejecia adresu i inne problemy konta.

@@ -101,6 +101,14 @@ class GoogleApiException extends \RuntimeException
             $message = $httpCode > 0 ? 'Google returned HTTP ' . $httpCode . '.' : 'No response from Google.';
         }
 
+        // Merchant API: brak rejestracji projektu przychodzi jako 401 UNAUTHENTICATED, ale powod
+        // bywa podany inaczej niz w dokumentacji (np. bez ErrorInfo albo jako AUTH_GCP_NOT_REGISTERED).
+        // Traktowany jak blad logowania odswiezal token i konczyl sie „polacz konto ponownie”.
+        if (!str_starts_with($reason, 'GCP_NOT_REGISTERED')
+            && (str_contains($reason, 'GCP_NOT_REGISTERED') || preg_match('/project .* is not registered with (the|this) merchant account/i', $message))) {
+            $reason = 'GCP_NOT_REGISTERED';
+        }
+
         $retryAfter = null;
 
         if (isset($headers['retry-after']) && ctype_digit(trim($headers['retry-after']))) {

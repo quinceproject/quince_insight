@@ -4,6 +4,23 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-11-26
+
+### Fixed
+
+- **Merchant Center: registering the Cloud project no longer ends with "connect the
+  Google account again".** Before the project is registered, Merchant API answers every
+  call with 401. The module read that answer as an expired sign-in when Google did not
+  name the reason in the expected field, and it also asked Google for the account's name
+  before registering, which cannot work. The Merchant ID is now saved without asking
+  Google first, and a project that is not registered yet is recognised by the text of
+  Google's answer too.
+- **Merchant Center step: errors of "Register", "Claim" and the account choice appear at
+  the top of the step**, where the step's other messages are, instead of only in a toast
+  at the bottom of the page.
+- When Google refuses access after the sign-in was refreshed, the message now also
+  shows Google's own text, so the real reason is visible.
+
 ## [0.1.8] - 2026-11-26
 
 ### Fixed

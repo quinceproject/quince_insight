@@ -47,10 +47,16 @@
     </div>
 
     {% if d.error|default('') %}
-        <div style="margin-bottom:20px">
+        <div style="margin-bottom:20px" x-show="!actionError">
             {% include '@Modules/quince_insight/views/templates/admin/_partials/alert.html.twig' with {level: 'danger', text: d.error} only %}
         </div>
     {% endif %}
+
+    {# Blad przycisku („Register”, „Claim”, zapis konta) — w tym samym miejscu co blad kroku. #}
+    <div class="qc-alert qc-alert-danger" style="margin-bottom:20px" x-show="actionError" x-cloak>
+        {{ icons.icon('alertCircle', 18, 'qc-alert-icon') }}
+        <div x-text="actionError"></div>
+    </div>
 
     <div class="qc-cols">
         <div class="qc-settings-list">

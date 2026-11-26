@@ -463,6 +463,17 @@ window.QIMerchant = (function () {
             },
 
             /** Rejestracja i przejecie dzialaja na wybranym koncie — najpierw je zapisujemy. */
+            actionError: '',
+
+            // Blad przycisku na gorze kroku (dymek z QI.post znika i jest daleko od przycisku).
+            showError: function (r) {
+                this.actionError = (r && r.error) ? r.error : '';
+
+                if (this.actionError) {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            },
+
             ensureAccount: function () {
                 var self = this;
                 var id = this.selectedId();
@@ -478,6 +489,8 @@ window.QIMerchant = (function () {
                 return QI.post(cfg.accountsUrl, { select: id, id_shop: cfg.idShop }).then(function (r) {
                     if (r.ok) {
                         cfg.saved = id;
+                    } else {
+                        self.showError(r);
                     }
 
                     return r.ok;
@@ -495,11 +508,14 @@ window.QIMerchant = (function () {
                         return;
                     }
 
+                    self.actionError = '';
                     QI.post(cfg.registerUrl, { id_shop: cfg.idShop }).then(function (r) {
                         self.regState = 'idle';
 
                         if (r.ok) {
                             self.registered = true;
+                        } else {
+                            self.showError(r);
                         }
                     });
                 });
@@ -516,11 +532,14 @@ window.QIMerchant = (function () {
                         return;
                     }
 
+                    self.actionError = '';
                     QI.post(cfg.claimUrl, { overwrite: !!overwrite, id_shop: cfg.idShop }).then(function (r) {
                         self.claimState = 'idle';
 
                         if (r.ok) {
                             self.claim = r.claim;
+                        } else {
+                            self.showError(r);
                         }
                     });
                 });

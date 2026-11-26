@@ -312,7 +312,12 @@ abstract class PanelController extends PrestaShopAdminController
         }
 
         if ($e instanceof GoogleAuthException) {
-            return $this->t('The Google account needs to be connected again. Open Settings and sign in with Google.');
+            // Odmowa po odswiezeniu tokenu: zwykle wygasle logowanie, ale Google uzywa 401 tez
+            // dla innych przyczyn — tresc odpowiedzi pokazuje, ktora to jest.
+            $detail = trim($e->getMessage());
+
+            return $this->t('The Google account needs to be connected again. Open Settings and sign in with Google.')
+                . ($detail !== '' && $e->reason() !== 'invalid_grant' ? ' — Google: ' . $detail : '');
         }
 
         if ($e instanceof GoogleApiException) {
