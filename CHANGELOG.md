@@ -4,6 +4,20 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-11-26
+
+### Fixed
+
+- **Tag Manager: the new "Google Analytics" tag type is recognised as the container's
+  Google tag.** Tag Manager now adds a "Google Analytics" tag for a measurement ID, and it
+  conflicts with a second Google tag the same way an older "Google tag" did. 0.1.7 only
+  looked for the "Google tag" type, so the module still created "QI - Google tag" next to
+  it and the version was refused again. The module now recognises any Google tag or
+  Google product tag for the same measurement ID, does not create its own (and removes
+  one it created before), and leaves that tag unchanged. Because that tag sends page
+  views itself, the module also stops adding its own `page_view` event tag there, so page
+  views are not counted twice; they are sent without the page category parameter.
+
 ## [0.1.7] - 2026-11-26
 
 ### Fixed

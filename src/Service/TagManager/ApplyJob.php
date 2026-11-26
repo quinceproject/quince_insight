@@ -837,12 +837,14 @@ final class ApplyJob implements JobHandler
                 'fingerprint' => (string) ($entity['fingerprint'] ?? ''),
             ];
 
-            // Tagi Google: tyle, ile trzeba do wykrycia tagu Google spoza modulu (PlanDiff::ADOPT).
-            if ($kind === 'tag' && (string) ($entity['type'] ?? '') === 'googtag') {
+            // Tagi: tyle, ile trzeba do wykrycia tagu Google albo tagu produktu Google spoza
+            // modulu (PlanDiff::ADOPT / ADOPTED).
+            if ($kind === 'tag') {
                 $info = PlanDiff::googleTagInfo($entity);
-                $row['type'] = 'googtag';
+                $row['type'] = (string) ($entity['type'] ?? '');
                 $row['googtagId'] = $info['tagId'];
                 $row['noPageView'] = $info['noPageView'] ? '1' : '0';
+                $row['googleIds'] = implode(' ', $info['ids']);
             }
 
             $out[] = $row;

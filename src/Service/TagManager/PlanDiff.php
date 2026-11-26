@@ -46,6 +46,12 @@ final class PlanDiff
     public const ID_FIELDS = ['tag' => 'tagId', 'trigger' => 'triggerId', 'variable' => 'variableId', 'folder' => 'folderId'];
 
     /**
+     * Typy tagow, ktore korzystaja z tagu Google zamiast nim byc (zdarzenie GA4, konwersja
+     * i remarketing Google Ads, Conversion Linker, wlasny HTML, obrazek).
+     */
+    public const EVENT_TAG_TYPES = ['gaawe', 'awct', 'sp', 'gclidw', 'html', 'img', 'awcc', 'awud', 'flc', 'fls'];
+
+    /**
      * @param array<string,array<int,array<string,mixed>>> $live rodzaj (tag|trigger|variable|folder) => encje z GTM
      * @param array<string,array<string,string>> $tracked klucz => wiersz `gtm_entity`
      *
@@ -66,6 +72,7 @@ final class PlanDiff
 
         $ops = [];
         $used = [];
+        $skip = [];
 
         // Tag Google z innego zrodla (np. dodany przez Tag Manager do uslugi) dla tego samego
         // identyfikatora: korzystamy z niego, a wlasny — jesli juz powstal — usuwamy.
@@ -88,11 +95,31 @@ final class PlanDiff
             }
 
             $used['tag'][(string) $foreign['tagId']] = true;
-            $ops[] = $this->op(self::googleTagInfo($foreign)['noPageView'] ? self::ADOPTED : self::ADOPT, 'tag', 'tag.google', (string) ($foreign['name'] ?? ''), $google->group, (string) $foreign['tagId'], (string) ($foreign['fingerprint'] ?? ''));
+            $product = ($foreign['qiProduct'] ?? '0') === '1';
+            $ops[] = $this->op($product || self::googleTagInfo($foreign)['noPageView'] ? self::ADOPTED : self::ADOPT, 'tag', 'tag.google', (string) ($foreign['name'] ?? ''), $google->group, (string) $foreign['tagId'], (string) ($foreign['fingerprint'] ?? ''));
+
+            if ($product) {
+                $pv = $plan->find('tag.ga4.page_view');
+                $pvRow = $tracked['tag.ga4.page_view'] ?? null;
+                $pvId = '';
+
+                if ($pvRow !== null && isset($byId['tag'][$pvRow['gtm_id']])) {
+                    $pvId = (string) $pvRow['gtm_id'];
+                } elseif ($pv !== null && isset($byName['tag'][$pv->name])) {
+                    $pvId = (string) ($byName['tag'][$pv->name]['tagId'] ?? '');
+                }
+
+                if ($pvId !== '') {
+                    $ops[] = $this->op(self::DELETE, 'tag', 'tag.ga4.page_view', $pv !== null ? $pv->name : 'QI - GA4 - page_view', 'ga4_events', $pvId, '');
+                    $used['tag'][$pvId] = true;
+                }
+
+                $skip['tag.ga4.page_view'] = true;
+            }
         }
 
         foreach ($plan->entities as $entity) {
-            if ($entity->key === 'tag.google' && $foreign !== null) {
+            if (($entity->key === 'tag.google' && $foreign !== null) || isset($skip[$entity->key])) {
                 continue;
             }
 
@@ -132,7 +159,7 @@ final class PlanDiff
         $removals = [];
 
         foreach ($tracked as $key => $row) {
-            if (isset($planKeys[$key]) || ($key === 'tag.google' && $foreign !== null)) {
+            if (isset($planKeys[$key]) || ($key === 'tag.google' && $foreign !== null) || isset($skip[$key])) {
                 continue;
             }
 
@@ -170,18 +197,24 @@ final class PlanDiff
 
         foreach ($tags as $tag) {
             $info = self::googleTagInfo($tag);
-
-            if ($info['type'] !== 'googtag' || strtoupper($info['tagId']) !== $want) {
-                continue;
-            }
-
             $id = (string) ($tag['tagId'] ?? '');
 
-            if ($id === '' || $id === $ownTrackedId || (string) ($tag['name'] ?? '') === $google->name) {
+            if ($id === '' || $id === $ownTrackedId || (string) ($tag['name'] ?? '') === $google->name
+                || str_starts_with((string) ($tag['name'] ?? ''), ContainerPlan::PREFIX)) {
                 continue;
             }
 
-            return $tag;
+            $isGoogleTag = $info['type'] === 'googtag' && strtoupper($info['tagId']) === $want;
+            // Tag produktu Google (np. typ „Google Analytics” w Tag Managerze) kierujacy do tego
+            // samego identyfikatora: Tag Manager traktuje go jak tag Google i odrzuca wersje
+            // z drugim („Konfliktujacy tag Google”). Tagi zdarzen i konwersji tylko korzystaja
+            // z tagu Google, wiec ich nie liczymy.
+            $isProductTag = !$isGoogleTag && !in_array($info['type'], self::EVENT_TAG_TYPES, true)
+                && in_array($want, array_map('strtoupper', $info['ids']), true);
+
+            if ($isGoogleTag || $isProductTag) {
+                return $tag + ['qiProduct' => $isProductTag ? '1' : '0'];
+            }
         }
 
         return null;
@@ -193,21 +226,61 @@ final class PlanDiff
      *
      * @param array<string,mixed> $tag
      *
-     * @return array{type:string,tagId:string,noPageView:bool}
+     * @return array{type:string,tagId:string,noPageView:bool,ids:string[]}
      */
     public static function googleTagInfo(array $tag): array
     {
         if (isset($tag['googtagId'])) {
-            return ['type' => (string) ($tag['type'] ?? ''), 'tagId' => (string) $tag['googtagId'], 'noPageView' => ($tag['noPageView'] ?? '') === '1'];
+            return [
+                'type' => (string) ($tag['type'] ?? ''),
+                'tagId' => (string) $tag['googtagId'],
+                'noPageView' => ($tag['noPageView'] ?? '') === '1',
+                'ids' => array_values(array_filter(explode(' ', (string) ($tag['googleIds'] ?? '')))),
+            ];
         }
 
         $params = is_array($tag['parameter'] ?? null) ? $tag['parameter'] : [];
+        $ids = self::googleIds($params);
 
         return [
             'type' => (string) ($tag['type'] ?? ''),
             'tagId' => (string) self::paramValue($params, 'tagId'),
             'noPageView' => self::sendPageViewOff($params),
+            'ids' => $ids,
         ];
+    }
+
+    /**
+     * Identyfikatory Google (G-…, AW-…, GT-…, DC-…) w parametrach tagu, takze zagniezdzonych
+     * w listach i mapach — nie znamy kluczy wszystkich typow tagow produktu.
+     *
+     * @param array<int,array<string,mixed>> $params
+     *
+     * @return string[]
+     */
+    private static function googleIds(array $params): array
+    {
+        $ids = [];
+
+        foreach ($params as $param) {
+            if (!is_array($param)) {
+                continue;
+            }
+
+            $value = isset($param['value']) ? trim((string) $param['value']) : '';
+
+            if ($value !== '' && preg_match('/^(G|AW|GT|DC)-[A-Z0-9]+$/i', $value)) {
+                $ids[] = $value;
+            }
+
+            foreach (['list', 'map'] as $nested) {
+                if (is_array($param[$nested] ?? null)) {
+                    $ids = array_merge($ids, self::googleIds($param[$nested]));
+                }
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /** @param array<int,array<string,mixed>> $params */
