@@ -7,6 +7,8 @@ Software License 3.0. Each stays under its own terms, given here.
 |-----------|---------|----------------------|-------|
 | [Alpine.js](https://alpinejs.dev/) | 3.15.12 | `views/js/alpine.min.js` | MIT |
 | [Google product taxonomy](https://support.google.com/merchants/answer/6324436) | as published by Google | `data/google_taxonomy/taxonomy-with-ids.*.txt` | provided by Google for merchants; © Google |
+| [Lucide](https://lucide.dev/), 2 icons (heart, arrow-right) | | `views/templates/admin/_macros/icons.html.twig` | ISC |
+| [Instrument Sans](https://github.com/Instrument/instrument-sans), Copyright 2022 The Instrument Sans Project Authors | | `views/fonts/instrument-sans-*.woff2` | SIL Open Font License 1.1, full text in `views/fonts/OFL-instrument-sans.txt` |
 
 Alpine.js is used only on the module's back office screens. The taxonomy files are the
 category lists Google publishes for product data; the module reads them to let the
@@ -38,4 +40,24 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+## Lucide
+
+```
+ISC License
+
+Copyright (c) for portions of Lucide are held by Cole Bemis 2013-2022 as part of Feather (MIT). All other copyright (c) for Lucide are held by Lucide Contributors 2022.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 ```

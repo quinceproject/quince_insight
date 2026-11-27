@@ -16,13 +16,15 @@ if (!defined('_PS_VERSION_')) {
 }
 
 use PrestaShopBundle\Security\Attribute\AdminSecurity;
+use Quince\Insight\Ui\SupportLinks;
 use Quince\Insight\Wizard\Diagnostics;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Support — wizytowka 1:1 z prototypu (`pg==='support'`, "Buy me a coffee"), pod nia
+ * Support — na gorze wsparcie projektu na Ko-fi i zgloszenia na GitHubie (wzor: ekran
+ * Support w Quince Engine, adresy w `Ui\SupportLinks`), pod nimi wizytowka modulu,
  * informacje systemowe do zgloszenia bledu (wzor: Quince CMP "System information")
  * i changelog z pliku `CHANGELOG.md` modulu.
  */
@@ -41,6 +43,9 @@ final class SupportController extends PanelController
         return $this->renderPanel('support/index.html.twig', 'support', [
             'version' => $this->moduleVersion(),
             'changelog' => $this->changelog(),
+            'kofi' => SupportLinks::KOFI,
+            'project' => SupportLinks::PROJECT,
+            'issues' => SupportLinks::ISSUES,
         ]);
     }
 

@@ -1644,11 +1644,6 @@
         <target>Builds audiences of visitors for your campaigns.</target>
         <note>views/templates/admin/wizard/steps/ads.html.twig</note>
       </trans-unit>
-      <trans-unit id="41ce98493ec922bf9b7ea03f749aef64">
-        <source>Buy me a coffee</source>
-        <target>Buy me a coffee</target>
-        <note>views/templates/admin/support/index.html.twig</note>
-      </trans-unit>
       <trans-unit id="6b274c6156d174cc3c00e145f884ea28">
         <source>By country</source>
         <target>By country</target>
@@ -6559,9 +6554,9 @@
         <target>Search Console status not read: </target>
         <note>src/Service/SearchConsole/Task/SitemapTask.php</note>
       </trans-unit>
-      <trans-unit id="3bb379bfdb468043f8d5945b8e1a82c9">
-        <source>Search Console, Analytics, Tag Manager and Merchant Center connected through one setup. Free and open source. If it saves you time, consider buying me a coffee.</source>
-        <target>Search Console, Analytics, Tag Manager and Merchant Center connected through one setup. Free and open source. If it saves you time, consider buying me a coffee.</target>
+      <trans-unit id="9c4d97b487777fee2dfe06667d57a458">
+        <source>Search Console, Analytics, Tag Manager and Merchant Center connected through one setup. Free and open source.</source>
+        <target>Search Console, Analytics, Tag Manager and Merchant Center connected through one setup. Free and open source.</target>
         <note>views/templates/admin/support/index.html.twig</note>
       </trans-unit>
       <trans-unit id="ab9bc6b526bc59b2bc8d6f2badd4bb59">
@@ -9843,6 +9838,71 @@
         <source>No change</source>
         <target>No change</target>
         <note>src/Service/TagManager/ChangeRows.php</note>
+      </trans-unit>
+      <trans-unit id="eea80435e6302f8db5f7bf57401846e5">
+        <source>Support Quince</source>
+        <target>Support Quince</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="fb2487e5bf975c88ac8e9065b82e569d">
+        <source>Quince modules are free. If they are useful to you, support their development on Ko-fi.</source>
+        <target>Quince modules are free. If they are useful to you, support their development on Ko-fi.</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="5dc4a5bd36dc8b81f76f1336858f6864">
+        <source>Support on Ko-fi</source>
+        <target>Support on Ko-fi</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="8c22008c2a8298b9d7aa98d82b3b0057">
+        <source>You use %module% in your shop. Help us develop it.</source>
+        <target>You use %module% in your shop. Help us develop it.</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="b3ff4eed427f80b776ae1a26033ad1ee">
+        <source>Report a bug, describe what your shop is missing or share a remark on the module page on GitHub. %module% is part of Quince Project, a set of free modules for PrestaShop.</source>
+        <target>Report a bug, describe what your shop is missing or share a remark on the module page on GitHub. %module% is part of Quince Project, a set of free modules for PrestaShop.</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="3406147c3ce729ce17ed76d45c2896f9">
+        <source>Report a bug</source>
+        <target>Report a bug</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="2a3b4d741461df0608307174f4e58896">
+        <source>Say what happened and how to repeat it. Give the versions of PrestaShop and the module.</source>
+        <target>Say what happened and how to repeat it. Give the versions of PrestaShop and the module.</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="3ec6e5830bb6dffcc6ab9d696e32044c">
+        <source>Suggest a change</source>
+        <target>Suggest a change</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="2b2fe07a4dea172bdc993424ca987f01">
+        <source>Describe what you need and in what situation in your shop.</source>
+        <target>Describe what you need and in what situation in your shop.</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="92491c0606fcab14b27c80738ea7aaab">
+        <source>Share a remark</source>
+        <target>Share a remark</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="1a450be06e2dc0e5ec400d353d29a509">
+        <source>What is unclear in the panel or in the module description.</source>
+        <target>What is unclear in the panel or in the module description.</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="b617df13a8c4ec16ed294c579f4b866b">
+        <source>Report on GitHub</source>
+        <target>Report on GitHub</target>
+        <note>views/templates/admin/support/index.html.twig</note>
+      </trans-unit>
+      <trans-unit id="5d6d968a6ed1d9d4f16c0abcc5e42021">
+        <source>Project website</source>
+        <target>Project website</target>
+        <note>views/templates/admin/support/index.html.twig</note>
       </trans-unit>
     </body>
   </file>

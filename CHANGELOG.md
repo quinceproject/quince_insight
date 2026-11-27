@@ -4,6 +4,14 @@ All notable changes to this module are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the versioning follows
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-11-27
+
+### Changed
+
+- **Support**: the screen opens with a link to the project on Ko-fi and a block that
+  invites you to report bugs, suggestions and remarks in the module's GitHub
+  repository, with a link to the project website. The "Buy me a coffee" button is gone.
+
 ## [0.1.9] - 2026-11-26
 
 ### Fixed
